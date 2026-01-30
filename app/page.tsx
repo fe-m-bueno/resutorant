@@ -1,58 +1,40 @@
-import { DeployButton } from "@/components/deploy-button";
-import { EnvVarWarning } from "@/components/env-var-warning";
-import { AuthButton } from "@/components/auth-button";
-import { Hero } from "@/components/hero";
+import { ResutorantHero } from "@/components/resutorant-hero";
 import { ThemeSwitcher } from "@/components/theme-switcher";
-import { ConnectSupabaseSteps } from "@/components/tutorial/connect-supabase-steps";
-import { SignUpUserSteps } from "@/components/tutorial/sign-up-user-steps";
-import { hasEnvVars } from "@/lib/utils";
+import { ChefHat } from "lucide-react";
 import Link from "next/link";
-import { Suspense } from "react";
 
 export default function Home() {
   return (
-    <main className="min-h-screen flex flex-col items-center">
-      <div className="flex-1 w-full flex flex-col gap-20 items-center">
-        <nav className="w-full flex justify-center border-b border-b-foreground/10 h-16">
-          <div className="w-full max-w-5xl flex justify-between items-center p-3 px-5 text-sm">
-            <div className="flex gap-5 items-center font-semibold">
-              <Link href={"/"}>Next.js Supabase Starter</Link>
-              <div className="flex items-center gap-2">
-                <DeployButton />
-              </div>
+    <main className="min-h-screen flex flex-col">
+      {/* Minimal Header */}
+      <header className="fixed top-0 left-0 right-0 z-50 glass border-b border-border/30">
+        <div className="mx-auto flex h-14 max-w-5xl items-center justify-between px-4 md:px-6">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground transition-transform group-hover:scale-105">
+              <ChefHat className="h-4 w-4" />
             </div>
-            {!hasEnvVars ? (
-              <EnvVarWarning />
-            ) : (
-              <Suspense>
-                <AuthButton />
-              </Suspense>
-            )}
-          </div>
-        </nav>
-        <div className="flex-1 flex flex-col gap-20 max-w-5xl p-5">
-          <Hero />
-          <main className="flex-1 flex flex-col gap-6 px-4">
-            <h2 className="font-medium text-xl mb-4">Next steps</h2>
-            {hasEnvVars ? <SignUpUserSteps /> : <ConnectSupabaseSteps />}
-          </main>
-        </div>
-
-        <footer className="w-full flex items-center justify-center border-t mx-auto text-center text-xs gap-8 py-16">
-          <p>
-            Powered by{" "}
-            <a
-              href="https://supabase.com/?utm_source=create-next-app&utm_medium=template&utm_term=nextjs"
-              target="_blank"
-              className="font-bold hover:underline"
-              rel="noreferrer"
+            <span className="font-semibold text-foreground">Resutorant</span>
+          </Link>
+          
+          <div className="flex items-center gap-3">
+            <ThemeSwitcher />
+            <Link
+              href="/auth/login"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
             >
-              Supabase
-            </a>
-          </p>
-          <ThemeSwitcher />
-        </footer>
-      </div>
+              Entrar
+            </Link>
+          </div>
+        </div>
+      </header>
+      
+      {/* Hero Section */}
+      <ResutorantHero />
+      
+      {/* Minimal Footer */}
+      <footer className="py-6 text-center text-xs text-muted-foreground border-t">
+        <p>© 2026 Resutorant. Seu diário gastronômico.</p>
+      </footer>
     </main>
   );
 }

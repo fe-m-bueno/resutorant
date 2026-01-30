@@ -4,57 +4,96 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 3.9%;
+    /* Modern, clean light palette */
+    --background: 40 20% 98%;
+    --foreground: 30 10% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 3.9%;
+    --card-foreground: 30 10% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 3.9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96.1%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96.1%;
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 0 0% 96.1%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 89.8%;
-    --input: 0 0% 89.8%;
-    --ring: 0 0% 3.9%;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
-    --radius: 0.5rem;
+    --popover-foreground: 30 10% 12%;
+    
+    /* Primary: Warm amber - refined and elegant */
+    --primary: 28 85% 52%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary: Soft warm gray */
+    --secondary: 40 15% 95%;
+    --secondary-foreground: 30 10% 25%;
+    
+    /* Muted: Subtle warm tones */
+    --muted: 40 10% 94%;
+    --muted-foreground: 30 8% 50%;
+    
+    /* Accent: Soft terracotta */
+    --accent: 18 60% 94%;
+    --accent-foreground: 18 60% 40%;
+    
+    /* Destructive */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Borders - ultra subtle */
+    --border: 40 10% 90%;
+    --input: 40 10% 90%;
+    --ring: 28 85% 52%;
+    
+    /* Chart colors */
+    --chart-1: 28 85% 52%;
+    --chart-2: 38 80% 55%;
+    --chart-3: 18 75% 50%;
+    --chart-4: 48 80% 50%;
+    --chart-5: 8 70% 55%;
+    
+    --radius: 0.875rem;
+    
+    /* Ratings colors */
+    --rating-excellent: 145 70% 40%;
+    --rating-good: 90 75% 42%;
+    --rating-average: 48 90% 50%;
+    --rating-poor: 28 85% 52%;
+    --rating-bad: 0 72% 51%;
   }
+
   .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    /* Deep, warm dark palette */
+    --background: 30 10% 6%;
+    --foreground: 40 10% 94%;
+    --card: 30 10% 8%;
+    --card-foreground: 40 10% 94%;
+    --popover: 30 10% 8%;
+    --popover-foreground: 40 10% 94%;
+    
+    /* Primary in dark - vibrant but refined */
+    --primary: 28 90% 55%;
+    --primary-foreground: 30 10% 6%;
+    
+    /* Secondary */
+    --secondary: 30 8% 14%;
+    --secondary-foreground: 40 10% 80%;
+    
+    /* Muted */
+    --muted: 30 8% 14%;
+    --muted-foreground: 40 8% 55%;
+    
+    /* Accent */
+    --accent: 30 10% 12%;
+    --accent-foreground: 28 80% 65%;
+    
+    /* Destructive */
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Borders */
+    --border: 30 8% 14%;
+    --input: 30 8% 14%;
+    --ring: 28 90% 55%;
+    
+    /* Chart colors - brighter for dark mode */
+    --chart-1: 28 85% 58%;
+    --chart-2: 38 80% 60%;
+    --chart-3: 18 70% 55%;
+    --chart-4: 48 75% 55%;
+    --chart-5: 8 65% 58%;
   }
 }
 
@@ -62,7 +101,146 @@
   * {
     @apply border-border;
   }
+  
+  html {
+    @apply scroll-smooth;
+  }
+  
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  /* Smooth color transitions for theme switching */
+  *,
+  *::before,
+  *::after {
+    @apply transition-colors duration-200;
+  }
+}
+
+@layer utilities {
+  /* Safe area for mobile bottom nav */
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 1rem), 1rem);
+  }
+  
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0);
+  }
+  
+  /* Rating color utilities */
+  .rating-excellent {
+    color: hsl(var(--rating-excellent));
+  }
+  .rating-good {
+    color: hsl(var(--rating-good));
+  }
+  .rating-average {
+    color: hsl(var(--rating-average));
+  }
+  .rating-poor {
+    color: hsl(var(--rating-poor));
+  }
+  .rating-bad {
+    color: hsl(var(--rating-bad));
+  }
+  
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Animations */
+  .animate-enter {
+    animation: animate-enter 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  @keyframes animate-enter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in {
+    animation: fade-in 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-scale-in {
+    animation: scale-in 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* Staggered animations for lists */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+  .stagger-5 { animation-delay: 250ms; }
+  
+  /* Glassmorphism utilities */
+  .glass {
+    @apply bg-background/80 backdrop-blur-xl;
+  }
+  
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border-border/50;
+  }
+  
+  /* Focus visible for accessibility */
+  .focus-ring {
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+  
+  /* Subtle gradient overlays */
+  .gradient-mask-b {
+    mask-image: linear-gradient(to bottom, black 60%, transparent);
+  }
+  
+  .gradient-mask-t {
+    mask-image: linear-gradient(to top, black 60%, transparent);
   }
 }
