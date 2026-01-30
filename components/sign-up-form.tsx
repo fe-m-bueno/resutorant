@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChefHat, Loader2 } from "lucide-react";
+import { signUpWithInviteKey, validateInviteKey, incrementInviteUsage } from "@/app/actions/auth";
 
 export function SignUpForm({
   className,
@@ -20,11 +21,21 @@ export function SignUpForm({
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const router = useRouter();
+
+  // Check for invite code on mount
+  useEffect(() => {
+    const code = sessionStorage.getItem("invite_code");
+    if (!code) {
+      router.push("/auth/invite?redirect=/auth/sign-up");
+    } else {
+      setInviteCode(code);
+    }
+  }, [router]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
@@ -34,15 +45,23 @@ export function SignUpForm({
       return;
     }
 
+    if (!inviteCode) {
+      setError("Código de convite não encontrado. Por favor, volte e insira novamente.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/protected`,
-        },
-      });
-      if (error) throw error;
+      const result = await signUpWithInviteKey(email, password, inviteCode);
+      
+      if (!result.success) {
+        setError(result.error || "Ocorreu um erro");
+        setIsLoading(false);
+        return;
+      }
+
+      // Clear invite code from session
+      sessionStorage.removeItem("invite_code");
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "Ocorreu um erro");
@@ -52,11 +71,28 @@ export function SignUpForm({
   };
 
   const handleGoogleSignUp = async () => {
-    const supabase = createClient();
+    if (!inviteCode) {
+      setError("Código de convite não encontrado");
+      return;
+    }
+
     setIsGoogleLoading(true);
     setError(null);
 
     try {
+      // Validate invite before OAuth
+      const validation = await validateInviteKey(inviteCode);
+      if (!validation.valid) {
+        setError(validation.error || "Código de convite inválido");
+        setIsGoogleLoading(false);
+        return;
+      }
+
+      // Store that we need to increment after OAuth completes
+      // Use cookie so it's accessible in the server-side callback
+      document.cookie = `pending_invite_code=${inviteCode}; path=/; max-age=600; SameSite=Lax`;
+
+      const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -69,6 +105,15 @@ export function SignUpForm({
       setIsGoogleLoading(false);
     }
   };
+
+  // Show loading while checking invite code
+  if (!inviteCode) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className={cn("flex flex-col gap-8", className)} {...props}>
