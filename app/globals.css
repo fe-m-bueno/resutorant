@@ -110,13 +110,6 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
-  
-  /* Smooth color transitions for theme switching */
-  *,
-  *::before,
-  *::after {
-    @apply transition-colors duration-200;
-  }
 }
 
 @layer utilities {

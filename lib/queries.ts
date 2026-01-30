@@ -117,27 +117,34 @@ export async function getReviewsByUser(userId: string): Promise<ReviewWithVenue[
     .order('visited_at', { ascending: false })
   
   if (error) throw error
+  if (!reviews?.length) return []
   
-  // Fetch tags for each review
-  const reviewsWithTags = await Promise.all(
-    (reviews ?? []).map(async (review) => {
-      const { data: tagLinks } = await supabase
-        .from('review_tags')
-        .select('tag_id')
-        .eq('review_id', review.id)
-      
-      if (tagLinks?.length) {
-        const { data: tags } = await supabase
-          .from('tags')
-          .select('*')
-          .in('id', tagLinks.map(l => l.tag_id))
-        
-        return { ...review, tags: tags ?? [] }
-      }
-      
-      return { ...review, tags: [] }
-    })
-  )
+  // Fetch all tags in batch (fixes N+1 problem)
+  const reviewIds = reviews.map(r => r.id)
+  const { data: allTagLinks } = await supabase
+    .from('review_tags')
+    .select('tag_id, review_id')
+    .in('review_id', reviewIds)
+  
+  if (!allTagLinks?.length) {
+    return reviews.map(r => ({ ...r, tags: [] })) as ReviewWithVenue[]
+  }
+  
+  const tagIds = [...new Set(allTagLinks.map(l => l.tag_id))]
+  const { data: allTags } = await supabase
+    .from('tags')
+    .select('*')
+    .in('id', tagIds)
+  
+  // Map tags to reviews
+  const tagMap = new Map(allTags?.map(t => [t.id, t]) ?? [])
+  const reviewsWithTags = reviews.map(review => ({
+    ...review,
+    tags: allTagLinks
+      .filter(l => l.review_id === review.id)
+      .map(l => tagMap.get(l.tag_id))
+      .filter(Boolean) ?? []
+  }))
   
   return reviewsWithTags as ReviewWithVenue[]
 }
@@ -152,27 +159,34 @@ export async function getRecentReviews(limit: number): Promise<ReviewWithVenue[]
     .limit(limit)
   
   if (error) throw error
+  if (!reviews?.length) return []
   
-  // Fetch tags for each review
-  const reviewsWithTags = await Promise.all(
-    (reviews ?? []).map(async (review) => {
-      const { data: tagLinks } = await supabase
-        .from('review_tags')
-        .select('tag_id')
-        .eq('review_id', review.id)
-      
-      if (tagLinks?.length) {
-        const { data: tags } = await supabase
-          .from('tags')
-          .select('*')
-          .in('id', tagLinks.map(l => l.tag_id))
-        
-        return { ...review, tags: tags ?? [] }
-      }
-      
-      return { ...review, tags: [] }
-    })
-  )
+  // Fetch all tags in batch (fixes N+1 problem)
+  const reviewIds = reviews.map(r => r.id)
+  const { data: allTagLinks } = await supabase
+    .from('review_tags')
+    .select('tag_id, review_id')
+    .in('review_id', reviewIds)
+  
+  if (!allTagLinks?.length) {
+    return reviews.map(r => ({ ...r, tags: [] })) as ReviewWithVenue[]
+  }
+  
+  const tagIds = [...new Set(allTagLinks.map(l => l.tag_id))]
+  const { data: allTags } = await supabase
+    .from('tags')
+    .select('*')
+    .in('id', tagIds)
+  
+  // Map tags to reviews
+  const tagMap = new Map(allTags?.map(t => [t.id, t]) ?? [])
+  const reviewsWithTags = reviews.map(review => ({
+    ...review,
+    tags: allTagLinks
+      .filter(l => l.review_id === review.id)
+      .map(l => tagMap.get(l.tag_id))
+      .filter(Boolean) ?? []
+  }))
   
   return reviewsWithTags as ReviewWithVenue[]
 }

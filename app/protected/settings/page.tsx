@@ -102,10 +102,21 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24 lg:pb-8">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-        <div className="mx-auto flex h-14 max-w-md items-center gap-4 px-4 lg:max-w-3xl lg:px-8">
+    <div className="min-h-screen bg-background">
+      {/* Desktop Header - only visible on lg+ */}
+      <header className="hidden lg:flex fixed top-0 left-64 right-0 z-40 h-16 items-center gap-4 border-b bg-background/95 backdrop-blur px-8">
+        <Link
+          href="/protected/profile"
+          className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted transition-colors"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </Link>
+        <h1 className="text-lg font-semibold">Configurações</h1>
+      </header>
+
+      {/* Mobile Header */}
+      <header className="lg:hidden sticky top-0 z-40 glass border-b border-border/30">
+        <div className="mx-auto flex h-14 max-w-md items-center gap-4 px-4">
           <Link
             href="/protected/profile"
             className="flex h-9 w-9 items-center justify-center rounded-lg hover:bg-muted transition-colors"
@@ -116,7 +127,9 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-md px-4 py-6 lg:max-w-3xl lg:px-8 lg:ml-64">
+      {/* Main Content */}
+      <main className="lg:ml-64 lg:pt-16 pb-24 lg:pb-8">
+        <div className="mx-auto max-w-md px-4 py-6 lg:max-w-3xl lg:px-8">
         {isLoading ? (
           <div className="space-y-6 animate-pulse">
             <div className="flex items-center gap-4">
@@ -265,6 +278,7 @@ export default function SettingsPage() {
             </form>
           </Form>
         )}
+        </div>
       </main>
 
       <BottomNav onAddClick={() => setIsModalOpen(true)} />

@@ -1,26 +1,33 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
+import dynamic from "next/dynamic"
 import { ChefHat, Settings, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { ReviewCard, ReviewCardSkeleton } from "@/components/review-card"
 import { BottomNav } from "@/components/bottom-nav"
-import { AddLogModal } from "@/components/add-log-modal"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { getProfile, getRecentReviews } from "@/lib/queries"
 import { createClient } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import type { Profile, ReviewWithVenue } from "@/lib/types"
 
+// Lazy load AddLogModal - only loaded when needed
+const AddLogModal = dynamic(
+  () => import("@/components/add-log-modal").then(m => ({ default: m.AddLogModal })),
+  { ssr: false }
+)
+
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [reviews, setReviews] = useState<ReviewWithVenue[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [greeting, setGreeting] = useState("Olá")
   const router = useRouter()
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
@@ -39,27 +46,36 @@ export default function DashboardPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [])
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/")
-  }
+  }, [router])
 
   useEffect(() => {
     loadData()
-  }, [])
-
-  const greeting = () => {
+    
+    // Set greeting on client side to avoid hydration mismatch
     const hour = new Date().getHours()
-    if (hour < 12) return "Bom dia"
-    if (hour < 18) return "Boa tarde"
-    return "Boa noite"
-  }
+    if (hour < 12) setGreeting("Bom dia")
+    else if (hour < 18) setGreeting("Boa tarde")
+    else setGreeting("Boa noite")
+  }, [loadData])
 
-  const userReviews = reviews.filter((r) => r.user_id === profile?.id)
-  const uniqueVenues = new Set(userReviews.map((r) => r.venue_id)).size
+
+  // Memoize computed values to avoid recalculation on every render
+  const { userReviews, uniqueVenues, averageRating } = useMemo(() => {
+    const filtered = reviews.filter((r) => r.user_id === profile?.id)
+    const venues = new Set(filtered.map((r) => r.venue_id)).size
+    const avg = filtered.length > 0 
+      ? (filtered.reduce((acc, r) => acc + r.rating, 0) / filtered.length).toFixed(1) 
+      : "-"
+    return { userReviews: filtered, uniqueVenues: venues, averageRating: avg }
+  }, [reviews, profile?.id])
+
+  const handleOpenModal = useCallback(() => setIsModalOpen(true), [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -115,7 +131,7 @@ export default function DashboardPage() {
               <div className="h-9 w-64 bg-muted rounded-lg animate-pulse" />
             ) : (
               <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
-                {greeting()}, {profile?.username ?? "Chef"}! 👋
+                {greeting}, {profile?.username ?? "Chef"}! 👋
               </h1>
             )}
             <p className="text-muted-foreground mt-2 text-sm lg:text-base">
@@ -145,7 +161,7 @@ export default function DashboardPage() {
             </div>
             <div className="hidden lg:block rounded-2xl bg-secondary p-6 border border-border/50">
               <p className="text-4xl font-bold text-foreground">
-                {userReviews.length > 0 ? (userReviews.reduce((acc, r) => acc + r.rating, 0) / userReviews.length).toFixed(1) : "-"}
+                {averageRating}
               </p>
               <p className="text-sm text-muted-foreground mt-1">Nota média</p>
             </div>
@@ -179,7 +195,7 @@ export default function DashboardPage() {
                   <p className="text-muted-foreground text-sm mb-6 max-w-sm mx-auto">
                     Registre seu primeiro log e construa seu diário gastronômico
                   </p>
-                  <Button onClick={() => setIsModalOpen(true)} size="lg">
+                  <Button onClick={handleOpenModal} size="lg">
                     Criar primeiro log
                   </Button>
                 </div>
@@ -189,7 +205,7 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <BottomNav onAddClick={() => setIsModalOpen(true)} />
+      <BottomNav onAddClick={handleOpenModal} />
       
       <AddLogModal
         open={isModalOpen}

@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 import { MapPin, Lock, Heart, MessageCircle } from "lucide-react"
@@ -19,7 +20,7 @@ interface ReviewCardProps {
   onLike?: () => void
 }
 
-export function ReviewCard({
+export const ReviewCard = memo(function ReviewCard({
   review,
   profile,
   showProfile = false,
@@ -155,7 +156,7 @@ export function ReviewCard({
       </CardContent>
     </Card>
   )
-}
+})
 
 // Skeleton version for loading states
 export function ReviewCardSkeleton() {
