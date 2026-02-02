@@ -94,7 +94,7 @@ export type ProfileFormData = z.infer<typeof profileSchema>
 // Tag Schema
 export const tagSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(30, 'Nome muito longo'),
-  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Cor inválida').default('#6366f1'),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Cor inválida'),
 })
 
 export type TagFormData = z.infer<typeof tagSchema>
@@ -104,54 +104,8 @@ export const listSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(50, 'Nome muito longo'),
   description: z.string().max(200, 'Descrição muito longa').optional(),
   icon: z.string().optional(),
-  is_public: z.boolean().default(true),
+  is_public: z.boolean(),
 })
 
 export type ListFormData = z.infer<typeof listSchema>
 
-// ============================================================================
-// NEW SCHEMAS: Comments, Photos, Planned Visits, Favorites
-// ============================================================================
-
-// Comment Schema
-export const commentSchema = z.object({
-  review_id: z.string().uuid('Review ID inválido'),
-  text: z.string()
-    .min(1, 'Comentário não pode estar vazio')
-    .max(500, 'Comentário muito longo (máx. 500 caracteres)'),
-})
-
-export type CommentFormData = z.infer<typeof commentSchema>
-
-// Photo Upload Schema
-export const photoUploadSchema = z.object({
-  venue_id: z.string().uuid('Local inválido'),
-  caption: z.string().max(200, 'Legenda muito longa').optional(),
-})
-
-export type PhotoUploadFormData = z.infer<typeof photoUploadSchema>
-
-// Planned Visit Schema
-export const plannedVisitSchema = z.object({
-  venue_id: z.string().uuid('Local inválido'),
-})
-
-export type PlannedVisitFormData = z.infer<typeof plannedVisitSchema>
-
-// Profile Settings Schema (includes Top 4)
-export const profileSettingsSchema = z.object({
-  username: z
-    .string()
-    .min(3, 'Username deve ter pelo menos 3 caracteres')
-    .max(30, 'Username deve ter no máximo 30 caracteres')
-    .regex(/^[a-zA-Z0-9_]+$/, 'Apenas letras, números e underscore'),
-  bio: z.string().max(160, 'Bio deve ter no máximo 160 caracteres').optional(),
-  website: z.string().url('URL inválida').optional().or(z.literal('')),
-  avatar_url: z.string().url().optional(),
-  top_four_venues: z
-    .array(z.string().uuid())
-    .max(4, 'Máximo de 4 locais')
-    .optional(),
-})
-
-export type ProfileSettingsFormData = z.infer<typeof profileSettingsSchema>

@@ -1,15 +1,27 @@
+"use client";
+
+import { useState } from "react";
+import { InviteCodeForm } from "@/components/invite-code-form";
 import { SignUpForm } from "@/components/sign-up-form";
 import { ThemeSwitcher } from "@/components/theme-switcher";
 import Link from "next/link";
 import { ChefHat, ArrowLeft } from "lucide-react";
 
 export default function Page() {
+  const [validatedInviteCode, setValidatedInviteCode] = useState<string | null>(
+    null,
+  );
+
+  const handleInviteSuccess = (code: string) => {
+    setValidatedInviteCode(code);
+  };
+
   return (
     <div className="min-h-svh flex flex-col bg-gradient-to-b from-primary/5 via-background to-background">
       {/* Header */}
       <header className="flex items-center justify-between p-4">
-        <Link 
-          href="/" 
+        <Link
+          href="/"
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -17,17 +29,24 @@ export default function Page() {
         </Link>
         <ThemeSwitcher />
       </header>
-      
+
       {/* Content */}
       <main className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
-          <SignUpForm />
+          {validatedInviteCode ? (
+            <SignUpForm inviteCode={validatedInviteCode} />
+          ) : (
+            <InviteCodeForm onSuccess={handleInviteSuccess} />
+          )}
         </div>
       </main>
-      
+
       {/* Footer */}
       <footer className="p-4 text-center">
-        <Link href="/" className="flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+        <Link
+          href="/"
+          className="flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+        >
           <ChefHat className="h-4 w-4" />
           <span className="text-sm font-medium">Resutorant</span>
         </Link>

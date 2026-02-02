@@ -1,68 +1,73 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { Home, Search, Plus, List, User, ChefHat } from "lucide-react"
-import { cn } from "@/lib/utils"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Home, Search, Plus, List, User, ChefHat } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface NavItem {
-  href: string
-  icon: React.ElementType
-  label: string
-  isFab?: boolean
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  isFab?: boolean;
 }
 
 const navItems: NavItem[] = [
-  { href: "/protected", icon: Home, label: "Home" },
-  { href: "/protected/search", icon: Search, label: "Buscar" },
+  { href: "/dashboard", icon: Home, label: "Home" },
+  { href: "/search", icon: Search, label: "Buscar" },
   { href: "#add", icon: Plus, label: "Adicionar", isFab: true },
-  { href: "/protected/lists", icon: List, label: "Listas" },
-  { href: "/protected/profile", icon: User, label: "Perfil" },
-]
+  { href: "/lists", icon: List, label: "Listas" },
+  { href: "/profile", icon: User, label: "Perfil" },
+];
 
 interface BottomNavProps {
-  onAddClick?: () => void
+  onAddClick?: () => void;
 }
 
 export function BottomNav({ onAddClick }: BottomNavProps) {
-  const pathname = usePathname()
+  const pathname = usePathname();
 
   return (
     <>
       {/* Desktop Sidebar */}
       <nav className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col border-r bg-card z-50">
         {/* Logo */}
-        <Link href="/protected" className="flex items-center gap-2.5 px-6 h-16 border-b transition-colors hover:bg-muted/50">
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-2.5 px-6 h-16 border-b transition-colors hover:bg-muted/50"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground">
             <ChefHat className="h-5 w-5" />
           </div>
           <span className="font-semibold text-lg">Resutorant</span>
         </Link>
-        
+
         {/* Nav Items */}
         <div className="flex-1 flex flex-col gap-1 p-3">
-          {navItems.filter(item => !item.isFab).map((item) => {
-            const isActive = pathname === item.href
-            const Icon = item.icon
+          {navItems
+            .filter((item) => !item.isFab)
+            .map((item) => {
+              const isActive = pathname === item.href;
+              const Icon = item.icon;
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-                )}
-              >
-                <Icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
-                {item.label}
-              </Link>
-            )
-          })}
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors",
+                    isActive
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+                  )}
+                >
+                  <Icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
+                  {item.label}
+                </Link>
+              );
+            })}
         </div>
-        
+
         {/* Add Button */}
         <div className="p-4 border-t">
           <button
@@ -79,8 +84,8 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-border/30 pb-safe">
         <div className="mx-auto flex h-16 max-w-md items-center justify-around px-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href
-            const Icon = item.icon
+            const isActive = pathname === item.href;
+            const Icon = item.icon;
 
             if (item.isFab) {
               return (
@@ -92,7 +97,7 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
                 >
                   <Icon className="h-5 w-5" />
                 </button>
-              )
+              );
             }
 
             return (
@@ -103,16 +108,16 @@ export function BottomNav({ onAddClick }: BottomNavProps) {
                   "flex flex-col items-center justify-center gap-1 px-4 py-2 rounded-xl transition-colors",
                   isActive
                     ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
               >
                 <Icon className={cn("h-5 w-5", isActive && "stroke-[2.5]")} />
                 <span className="text-[10px] font-medium">{item.label}</span>
               </Link>
-            )
+            );
           })}
         </div>
       </nav>
     </>
-  )
+  );
 }

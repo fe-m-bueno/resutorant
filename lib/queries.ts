@@ -1,50 +1,47 @@
-import { createClient } from '@/lib/supabase/client'
-import type { 
-  Profile, 
-  Venue, 
-  Review, 
-  Tag, 
-  CuisineType, 
+import { createClient } from "@/lib/supabase/client";
+import type {
+  Profile,
+  Venue,
+  Review,
+  Tag,
+  CuisineType,
   List,
   ReviewWithVenue,
   VenueWithCuisines,
   ListWithVenues,
-  VenuePhoto,
-  VenuePhotoWithUser,
-  ReviewComment,
-  ReviewCommentWithUser,
-  VenueEdit,
-  VenueEditWithUser,
-} from '@/lib/types'
-import type { CreateLogFormData, ProfileFormData, ProfileSettingsFormData } from '@/lib/schemas'
+} from "@/lib/types";
+import type { CreateLogFormData, ProfileFormData } from "@/lib/schemas";
 
 // ============================================================================
 // PROFILES
 // ============================================================================
 
 export async function getProfile(userId: string): Promise<Profile | null> {
-  const supabase = createClient()
+  const supabase = createClient();
   const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', userId)
-    .single()
-  
-  if (error) throw error
-  return data
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
-export async function updateProfile(userId: string, data: ProfileFormData): Promise<Profile> {
-  const supabase = createClient()
+export async function updateProfile(
+  userId: string,
+  data: ProfileFormData,
+): Promise<Profile> {
+  const supabase = createClient();
   const { data: profile, error } = await supabase
-    .from('profiles')
+    .from("profiles")
     .update(data)
-    .eq('id', userId)
+    .eq("id", userId)
     .select()
-    .single()
-  
-  if (error) throw error
-  return profile
+    .single();
+
+  if (error) throw error;
+  return profile;
 }
 
 // ============================================================================
@@ -52,206 +49,168 @@ export async function updateProfile(userId: string, data: ProfileFormData): Prom
 // ============================================================================
 
 export async function searchVenues(query: string): Promise<Venue[]> {
-  const supabase = createClient()
+  const supabase = createClient();
   const { data, error } = await supabase
-    .from('venues')
-    .select('*')
-    .ilike('name', `%${query}%`)
-    .limit(10)
-  
-  if (error) throw error
-  return data ?? []
+    .from("venues")
+    .select("*")
+    .ilike("name", `%${query}%`)
+    .limit(10);
+
+  if (error) throw error;
+  return data ?? [];
 }
 
 export async function createVenue(venue: {
-  name: string
-  type: Venue['type']
-  location: Venue['location']
-  created_by: string
+  name: string;
+  type: Venue["type"];
+  location: Venue["location"];
+  created_by: string;
 }): Promise<Venue> {
-  const supabase = createClient()
+  const supabase = createClient();
   const { data, error } = await supabase
-    .from('venues')
+    .from("venues")
     .insert(venue)
     .select()
-    .single()
-  
-  if (error) throw error
-  return data
+    .single();
+
+  if (error) throw error;
+  return data;
 }
 
-export async function getVenueWithCuisines(venueId: string): Promise<VenueWithCuisines | null> {
-  const supabase = createClient()
-  
-  const { data: venue, error: venueError } = await supabase
-    .from('venues')
-    .select('*')
-    .eq('id', venueId)
-    .single()
-  
-  if (venueError) throw venueError
-  if (!venue) return null
-  
-  const { data: cuisineLinks } = await supabase
-    .from('venue_cuisines')
-    .select('cuisine_id')
-    .eq('venue_id', venueId)
-  
-  if (cuisineLinks?.length) {
-    const { data: cuisines } = await supabase
-      .from('cuisine_types')
-      .select('*')
-      .in('id', cuisineLinks.map(l => l.cuisine_id))
-    
-    return { ...venue, cuisines: cuisines ?? [] }
-  }
-  
-  return venue
+export async function getVenueWithCuisines(
+  venueId: string,
+): Promise<VenueWithCuisines | null> {
+  const supabase = createClient();
+
+  const { data: venue, error } = await supabase
+    .from("venues")
+    .select("*, cuisines:venue_cuisines(cuisine:cuisine_types(*))")
+    .eq("id", venueId)
+    .single();
+
+  if (error) throw error;
+  if (!venue) return null;
+
+  // Transform the response to match the expected type
+  // Supabase returns nested objects, we need to flatten the structure
+  const formattedVenue = {
+    ...venue,
+    cuisines: venue.cuisines?.map((c: any) => c.cuisine).filter(Boolean) || [],
+  };
+
+  return formattedVenue as VenueWithCuisines;
 }
 
 // ============================================================================
 // REVIEWS
 // ============================================================================
 
-export async function getReviewsByUser(userId: string): Promise<ReviewWithVenue[]> {
-  const supabase = createClient()
-  
+export async function getReviewsByUser(
+  userId: string,
+): Promise<ReviewWithVenue[]> {
+  const supabase = createClient();
+
   const { data: reviews, error } = await supabase
-    .from('reviews')
-    .select('*, venue:venues(*)')
-    .eq('user_id', userId)
-    .order('visited_at', { ascending: false })
-  
-  if (error) throw error
-  if (!reviews?.length) return []
-  
-  // Fetch all tags in batch (fixes N+1 problem)
-  const reviewIds = reviews.map(r => r.id)
-  const { data: allTagLinks } = await supabase
-    .from('review_tags')
-    .select('tag_id, review_id')
-    .in('review_id', reviewIds)
-  
-  if (!allTagLinks?.length) {
-    return reviews.map(r => ({ ...r, tags: [] })) as ReviewWithVenue[]
-  }
-  
-  const tagIds = [...new Set(allTagLinks.map(l => l.tag_id))]
-  const { data: allTags } = await supabase
-    .from('tags')
-    .select('*')
-    .in('id', tagIds)
-  
-  // Map tags to reviews
-  const tagMap = new Map(allTags?.map(t => [t.id, t]) ?? [])
-  const reviewsWithTags = reviews.map(review => ({
-    ...review,
-    tags: allTagLinks
-      .filter(l => l.review_id === review.id)
-      .map(l => tagMap.get(l.tag_id))
-      .filter(Boolean) ?? []
-  }))
-  
-  return reviewsWithTags as ReviewWithVenue[]
+    .from("reviews")
+    .select(
+      "*, venue:venues(*, cuisines:venue_cuisines(cuisine:cuisine_types(*))), tags:review_tags(tag:tags(*))",
+    )
+    .eq("user_id", userId)
+    .order("visited_at", { ascending: false });
+
+  if (error) throw error;
+  if (!reviews?.length) return [];
+
+  return reviews.map((review) => {
+    const venue = review.venue as any;
+    const cuisines =
+      venue?.cuisines?.map((c: any) => c.cuisine).filter(Boolean) || [];
+    
+    return {
+      ...review,
+      venue: { ...venue, cuisines },
+      tags: review.tags?.map((t: any) => t.tag).filter(Boolean) || [],
+    };
+  }) as ReviewWithVenue[];
 }
 
-export async function getRecentReviews(limit: number): Promise<ReviewWithVenue[]> {
-  const supabase = createClient()
-  
+export async function getRecentReviews(
+  limit: number,
+): Promise<ReviewWithVenue[]> {
+  const supabase = createClient();
+
   const { data: reviews, error } = await supabase
-    .from('reviews')
-    .select('*, venue:venues(*)')
-    .order('visited_at', { ascending: false })
-    .limit(limit)
-  
-  if (error) throw error
-  if (!reviews?.length) return []
-  
-  // Fetch all tags in batch (fixes N+1 problem)
-  const reviewIds = reviews.map(r => r.id)
-  const { data: allTagLinks } = await supabase
-    .from('review_tags')
-    .select('tag_id, review_id')
-    .in('review_id', reviewIds)
-  
-  if (!allTagLinks?.length) {
-    return reviews.map(r => ({ ...r, tags: [] })) as ReviewWithVenue[]
-  }
-  
-  const tagIds = [...new Set(allTagLinks.map(l => l.tag_id))]
-  const { data: allTags } = await supabase
-    .from('tags')
-    .select('*')
-    .in('id', tagIds)
-  
-  // Map tags to reviews
-  const tagMap = new Map(allTags?.map(t => [t.id, t]) ?? [])
-  const reviewsWithTags = reviews.map(review => ({
+    .from("reviews")
+    .select("*, venue:venues(*), tags:review_tags(tag:tags(*))")
+    .order("visited_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  if (!reviews?.length) return [];
+
+  return reviews.map((review) => ({
     ...review,
-    tags: allTagLinks
-      .filter(l => l.review_id === review.id)
-      .map(l => tagMap.get(l.tag_id))
-      .filter(Boolean) ?? []
-  }))
-  
-  return reviewsWithTags as ReviewWithVenue[]
+    tags: review.tags?.map((t: any) => t.tag).filter(Boolean) || [],
+  })) as ReviewWithVenue[];
 }
 
 export async function createReview(data: {
-  user_id: string
-  venue_id: string
-  rating: number
-  text_review?: string
-  visited_at?: string
-  is_private: boolean
-  tag_ids?: string[]
+  user_id: string;
+  venue_id: string;
+  rating: number;
+  text_review?: string;
+  visited_at?: string;
+  is_private: boolean;
+  tag_ids?: string[];
 }): Promise<Review> {
-  const supabase = createClient()
-  
-  const { tag_ids, ...reviewData } = data
-  
+  const supabase = createClient();
+
+  const { tag_ids, ...reviewData } = data;
+
   const { data: review, error } = await supabase
-    .from('reviews')
+    .from("reviews")
     .insert(reviewData)
     .select()
-    .single()
-  
-  if (error) throw error
-  
+    .single();
+
+  if (error) throw error;
+
   // Link tags
   if (tag_ids?.length) {
     await supabase
-      .from('review_tags')
-      .insert(tag_ids.map(tag_id => ({ review_id: review.id, tag_id })))
+      .from("review_tags")
+      .insert(tag_ids.map((tag_id) => ({ review_id: review.id, tag_id })));
   }
-  
-  return review
+
+  return review;
 }
 
-export async function getUserRatingDistribution(userId: string): Promise<{ rating: number; count: number }[]> {
-  const supabase = createClient()
-  
+export async function getUserRatingDistribution(
+  userId: string,
+): Promise<{ rating: number; count: number }[]> {
+  const supabase = createClient();
+
   const { data, error } = await supabase
-    .from('reviews')
-    .select('rating')
-    .eq('user_id', userId)
-  
-  if (error) throw error
-  
+    .from("reviews")
+    .select("rating")
+    .eq("user_id", userId);
+
+  if (error) throw error;
+
   // Group by rating
-  const distribution: Record<number, number> = {}
+  const distribution: Record<number, number> = {};
   for (let r = 0.5; r <= 5; r += 0.5) {
-    distribution[r] = 0
+    distribution[r] = 0;
   }
-  
-  (data ?? []).forEach(review => {
-    distribution[review.rating] = (distribution[review.rating] || 0) + 1
-  })
-  
+
+  (data ?? []).forEach((review) => {
+    distribution[review.rating] = (distribution[review.rating] || 0) + 1;
+  });
+
   return Object.entries(distribution).map(([rating, count]) => ({
     rating: parseFloat(rating),
     count,
-  }))
+  }));
 }
 
 // ============================================================================
@@ -259,50 +218,142 @@ export async function getUserRatingDistribution(userId: string): Promise<{ ratin
 // ============================================================================
 
 export async function getTags(userId?: string): Promise<Tag[]> {
-  const supabase = createClient()
-  
-  let query = supabase.from('tags').select('*')
-  
+  const supabase = createClient();
+
+  let query = supabase.from("tags").select("*");
+
   if (userId) {
-    query = query.or(`created_by.is.null,created_by.eq.${userId}`)
+    query = query.or(`created_by.is.null,created_by.eq.${userId}`);
   } else {
-    query = query.is('created_by', null)
+    query = query.is("created_by", null);
   }
-  
-  const { data, error } = await query.order('name')
-  
-  if (error) throw error
-  return data ?? []
+
+  const { data, error } = await query.order("name");
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function getUserCreatedTags(userId: string): Promise<Tag[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("tags")
+    .select("*")
+    .eq("created_by", userId)
+    .order("name");
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function updateTag(
+  id: string,
+  data: { name: string; color: string }
+): Promise<Tag> {
+  const supabase = createClient();
+  const { data: tag, error } = await supabase
+    .from("tags")
+    .update(data)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return tag;
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("tags").delete().eq("id", id);
+  if (error) throw error;
 }
 
 export async function getCuisineTypes(userId?: string): Promise<CuisineType[]> {
-  const supabase = createClient()
-  
-  let query = supabase.from('cuisine_types').select('*')
-  
+  const supabase = createClient();
+
+  let query = supabase.from("cuisine_types").select("*");
+
   if (userId) {
-    query = query.or(`created_by.is.null,created_by.eq.${userId}`)
+    query = query.or(`created_by.is.null,created_by.eq.${userId}`);
   } else {
-    query = query.is('created_by', null)
+    query = query.is("created_by", null);
   }
-  
-  const { data, error } = await query.order('name')
-  
-  if (error) throw error
-  return data ?? []
+
+  const { data, error } = await query.order("name");
+
+  if (error) throw error;
+  return data ?? [];
 }
 
-export async function createTag(data: { name: string; color: string; created_by: string }): Promise<Tag> {
-  const supabase = createClient()
-  
-  const { data: tag, error } = await supabase
-    .from('tags')
+export async function getUserCreatedCuisines(
+  userId: string
+): Promise<CuisineType[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("cuisine_types")
+    .select("*")
+    .eq("created_by", userId)
+    .order("name");
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createCuisine(data: {
+  name: string;
+  icon?: string;
+  created_by: string;
+}): Promise<CuisineType> {
+  const supabase = createClient();
+  const { data: cuisine, error } = await supabase
+    .from("cuisine_types")
     .insert(data)
     .select()
-    .single()
-  
-  if (error) throw error
-  return tag
+    .single();
+
+  if (error) throw error;
+  return cuisine;
+}
+
+export async function updateCuisine(
+  id: string,
+  data: { name: string; icon?: string }
+): Promise<CuisineType> {
+  const supabase = createClient();
+  const { data: cuisine, error } = await supabase
+    .from("cuisine_types")
+    .update(data)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return cuisine;
+}
+
+export async function deleteCuisine(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("cuisine_types").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function createTag(data: {
+  name: string;
+  color: string;
+  created_by: string;
+}): Promise<Tag> {
+  const supabase = createClient();
+
+  const { data: tag, error } = await supabase
+    .from("tags")
+    .insert(data)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return tag;
 }
 
 // ============================================================================
@@ -310,182 +361,226 @@ export async function createTag(data: { name: string; color: string; created_by:
 // ============================================================================
 
 export async function getUserLists(userId: string): Promise<List[]> {
-  const supabase = createClient()
-  
+  const supabase = createClient();
+
   const { data, error } = await supabase
-    .from('lists')
-    .select('*')
-    .eq('user_id', userId)
-    .order('is_default', { ascending: false })
-    .order('name')
-  
-  if (error) throw error
-  return data ?? []
+    .from("lists")
+    .select("*")
+    .eq("user_id", userId)
+    .order("is_default", { ascending: false })
+    .order("name");
+
+  if (error) throw error;
+  return data ?? [];
 }
 
-export async function getListWithVenues(listId: string): Promise<ListWithVenues | null> {
-  const supabase = createClient()
-  
+export async function getListWithVenues(
+  listId: string,
+): Promise<ListWithVenues | null> {
+  const supabase = createClient();
+
   const { data: list, error: listError } = await supabase
-    .from('lists')
-    .select('*')
-    .eq('id', listId)
-    .single()
-  
-  if (listError) throw listError
-  if (!list) return null
-  
+    .from("lists")
+    .select("*")
+    .eq("id", listId)
+    .single();
+
+  if (listError) throw listError;
+  if (!list) return null;
+
   const { data: venueLinks } = await supabase
-    .from('list_venues')
-    .select('venue_id')
-    .eq('list_id', listId)
-  
+    .from("list_venues")
+    .select("venue_id")
+    .eq("list_id", listId);
+
   if (venueLinks?.length) {
     const { data: venues } = await supabase
-      .from('venues')
-      .select('*')
-      .in('id', venueLinks.map(l => l.venue_id))
-    
-    return { ...list, venues: venues ?? [] }
+      .from("venues")
+      .select("*")
+      .in(
+        "id",
+        venueLinks.map((l) => l.venue_id),
+      );
+
+    return { ...list, venues: venues ?? [] };
   }
-  
-  return list
+
+  return list;
 }
 
-export async function addVenueToList(listId: string, venueId: string, note?: string): Promise<void> {
-  const supabase = createClient()
-  
+export async function addVenueToList(
+  listId: string,
+  venueId: string,
+  note?: string,
+): Promise<void> {
+  const supabase = createClient();
+
   const { error } = await supabase
-    .from('list_venues')
-    .insert({ list_id: listId, venue_id: venueId, note })
-  
-  if (error) throw error
+    .from("list_venues")
+    .insert({ list_id: listId, venue_id: venueId, note });
+
+  if (error) throw error;
 }
 
-export async function removeVenueFromList(listId: string, venueId: string): Promise<void> {
-  const supabase = createClient()
-  
+export async function removeVenueFromList(
+  listId: string,
+  venueId: string,
+): Promise<void> {
+  const supabase = createClient();
+
   const { error } = await supabase
-    .from('list_venues')
+    .from("list_venues")
     .delete()
-    .eq('list_id', listId)
-    .eq('venue_id', venueId)
-  
-  if (error) throw error
+    .eq("list_id", listId)
+    .eq("venue_id", venueId);
+
+  if (error) throw error;
 }
 
 export async function createList(data: {
-  user_id: string
-  name: string
-  description?: string
-  icon?: string
-  is_public: boolean
+  user_id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+  is_public: boolean;
 }): Promise<List> {
-  const supabase = createClient()
-  
+  const supabase = createClient();
+
   const { data: list, error } = await supabase
-    .from('lists')
+    .from("lists")
     .insert(data)
     .select()
-    .single()
-  
-  if (error) throw error
-  return list
+    .single();
+  if (error) throw error;
+  return list;
+}
+
+export async function updateList(
+  id: string,
+  data: { name?: string; description?: string; icon?: string; is_public?: boolean }
+): Promise<List> {
+  const supabase = createClient();
+  const { data: list, error } = await supabase
+    .from("lists")
+    .update(data)
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return list;
+}
+
+export async function deleteList(id: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase.from("lists").delete().eq("id", id);
+  if (error) throw error;
 }
 
 // ============================================================================
 // CREATE LOG (Combined Venue + Review)
 // ============================================================================
 
-export async function searchReviews(query: string, limit = 20): Promise<ReviewWithVenue[]> {
-  const supabase = createClient()
-  
+export async function searchReviews(
+  query: string,
+  limit = 20,
+): Promise<ReviewWithVenue[]> {
+  const supabase = createClient();
+
   // Search for venues matching the query
   const { data: venues } = await supabase
-    .from('venues')
-    .select('id')
-    .ilike('name', `%${query}%`)
-  
-  const venueIds = venues?.map(v => v.id) ?? []
-  
+    .from("venues")
+    .select("id")
+    .ilike("name", `%${query}%`);
+
+  const venueIds = venues?.map((v) => v.id) ?? [];
+
   // Search reviews by text_review or by matching venue
   let reviewsQuery = supabase
-    .from('reviews')
-    .select('*, venue:venues(*)')
-    .order('visited_at', { ascending: false })
-    .limit(limit)
-  
+    .from("reviews")
+    .select("*, venue:venues(*)")
+    .order("visited_at", { ascending: false })
+    .limit(limit);
+
   if (venueIds.length > 0) {
-    reviewsQuery = reviewsQuery.or(`text_review.ilike.%${query}%,venue_id.in.(${venueIds.join(',')})`)
+    reviewsQuery = reviewsQuery.or(
+      `text_review.ilike.%${query}%,venue_id.in.(${venueIds.join(",")})`,
+    );
   } else {
-    reviewsQuery = reviewsQuery.ilike('text_review', `%${query}%`)
+    reviewsQuery = reviewsQuery.ilike("text_review", `%${query}%`);
   }
-  
-  const { data: reviews, error } = await reviewsQuery
-  
-  if (error) throw error
-  
+
+  const { data: reviews, error } = await reviewsQuery;
+
+  if (error) throw error;
+
   // Fetch tags for each review
   const reviewsWithTags = await Promise.all(
     (reviews ?? []).map(async (review) => {
       const { data: tagLinks } = await supabase
-        .from('review_tags')
-        .select('tag_id')
-        .eq('review_id', review.id)
-      
+        .from("review_tags")
+        .select("tag_id")
+        .eq("review_id", review.id);
+
       if (tagLinks?.length) {
         const { data: tags } = await supabase
-          .from('tags')
-          .select('*')
-          .in('id', tagLinks.map(l => l.tag_id))
-        
-        return { ...review, tags: tags ?? [] }
+          .from("tags")
+          .select("*")
+          .in(
+            "id",
+            tagLinks.map((l) => l.tag_id),
+          );
+
+        return { ...review, tags: tags ?? [] };
       }
-      
-      return { ...review, tags: [] }
-    })
-  )
-  
-  return reviewsWithTags as ReviewWithVenue[]
+
+      return { ...review, tags: [] };
+    }),
+  );
+
+  return reviewsWithTags as ReviewWithVenue[];
 }
 
 export async function createLog(
   userId: string,
-  data: CreateLogFormData
+  data: CreateLogFormData,
 ): Promise<{ venue: Venue; review: Review }> {
-  const supabase = createClient()
-  
-  let venueId = data.venue_id
-  let venue: Venue
-  
+  const supabase = createClient();
+
+  let venueId = data.venue_id;
+  let venue: Venue;
+
   // Create new venue if needed
   if (!venueId && data.venue_name) {
     const newVenue = await createVenue({
       name: data.venue_name,
-      type: data.venue_type ?? 'restaurante',
+      type: data.venue_type ?? "restaurante",
       location: data.venue_location ?? {},
       created_by: userId,
-    })
-    venueId = newVenue.id
-    venue = newVenue
-    
+    });
+    venueId = newVenue.id;
+    venue = newVenue;
+
     // Link cuisines
     if (data.cuisine_ids?.length) {
-      await supabase
-        .from('venue_cuisines')
-        .insert(data.cuisine_ids.map(cuisine_id => ({ venue_id: venueId!, cuisine_id })))
+      await supabase.from("venue_cuisines").insert(
+        data.cuisine_ids.map((cuisine_id) => ({
+          venue_id: venueId!,
+          cuisine_id,
+        })),
+      );
     }
   } else {
     const { data: existingVenue, error } = await supabase
-      .from('venues')
-      .select('*')
-      .eq('id', venueId!)
-      .single()
-    
-    if (error || !existingVenue) throw error || new Error('Venue not found')
-    venue = existingVenue
+      .from("venues")
+      .select("*")
+      .eq("id", venueId!)
+      .single();
+
+    if (error || !existingVenue) throw error || new Error("Venue not found");
+    venue = existingVenue;
   }
-  
+
   // Create review
   const review = await createReview({
     user_id: userId,
@@ -495,320 +590,81 @@ export async function createLog(
     visited_at: data.visited_at,
     is_private: data.is_private,
     tag_ids: data.tag_ids,
-  })
-  
-  return { venue, review }
+  });
+
+  return { venue, review };
 }
 
 // ============================================================================
-// VENUE PHOTOS
+// ACCOUNT DELETION
 // ============================================================================
 
-export async function getVenuePhotos(venueId: string): Promise<VenuePhotoWithUser[]> {
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('venue_photos')
-    .select('*, user:profiles(*)')
-    .eq('venue_id', venueId)
-    .order('created_at', { ascending: false })
-  
-  if (error) throw error
-  return (data ?? []) as VenuePhotoWithUser[]
-}
+export async function deleteAccount(userId: string): Promise<void> {
+  const supabase = createClient();
 
-export async function addVenuePhoto(
-  venueId: string,
-  userId: string,
-  storagePath: string,
-  caption?: string
-): Promise<VenuePhoto> {
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('venue_photos')
-    .insert({ venue_id: venueId, user_id: userId, storage_path: storagePath, caption })
-    .select()
-    .single()
-  
-  if (error) throw error
-  return data
-}
+  // Delete in correct order to respect foreign key constraints
+  // 1. Delete likes
+  await supabase.from("likes").delete().eq("user_id", userId);
 
-export async function deleteVenuePhoto(photoId: string): Promise<void> {
-  const supabase = createClient()
-  
-  const { error } = await supabase
-    .from('venue_photos')
-    .delete()
-    .eq('id', photoId)
-  
-  if (error) throw error
-}
-
-// ============================================================================
-// REVIEW COMMENTS
-// ============================================================================
-
-export async function getReviewComments(reviewId: string): Promise<ReviewCommentWithUser[]> {
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('review_comments')
-    .select('*, user:profiles(*)')
-    .eq('review_id', reviewId)
-    .order('created_at', { ascending: true })
-  
-  if (error) throw error
-  return (data ?? []) as ReviewCommentWithUser[]
-}
-
-export async function addComment(
-  reviewId: string,
-  userId: string,
-  text: string
-): Promise<ReviewComment> {
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('review_comments')
-    .insert({ review_id: reviewId, user_id: userId, text })
-    .select()
-    .single()
-  
-  if (error) throw error
-  return data
-}
-
-export async function deleteComment(commentId: string): Promise<void> {
-  const supabase = createClient()
-  
-  const { error } = await supabase
-    .from('review_comments')
-    .delete()
-    .eq('id', commentId)
-  
-  if (error) throw error
-}
-
-// ============================================================================
-// PLANNED VISITS ("I Plan to Go")
-// ============================================================================
-
-export async function getPlannedVisits(userId: string): Promise<Venue[]> {
-  const supabase = createClient()
-  
-  const { data: visits, error } = await supabase
-    .from('planned_visits')
-    .select('venue_id')
-    .eq('user_id', userId)
-  
-  if (error) throw error
-  if (!visits?.length) return []
-  
-  const { data: venues } = await supabase
-    .from('venues')
-    .select('*')
-    .in('id', visits.map(v => v.venue_id))
-  
-  return venues ?? []
-}
-
-export async function isPlannedVisit(userId: string, venueId: string): Promise<boolean> {
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('planned_visits')
-    .select('user_id')
-    .eq('user_id', userId)
-    .eq('venue_id', venueId)
-    .maybeSingle()
-  
-  if (error) throw error
-  return !!data
-}
-
-export async function togglePlannedVisit(userId: string, venueId: string): Promise<boolean> {
-  const supabase = createClient()
-  
-  // Check if already planned
-  const exists = await isPlannedVisit(userId, venueId)
-  
-  if (exists) {
-    const { error } = await supabase
-      .from('planned_visits')
+  // 2. Delete review tags and reviews
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("id")
+    .eq("user_id", userId);
+  if (reviews?.length) {
+    await supabase
+      .from("review_tags")
       .delete()
-      .eq('user_id', userId)
-      .eq('venue_id', venueId)
-    
-    if (error) throw error
-    return false // Removed
-  } else {
-    const { error } = await supabase
-      .from('planned_visits')
-      .insert({ user_id: userId, venue_id: venueId })
-    
-    if (error) throw error
-    return true // Added
-  }
-}
-
-// ============================================================================
-// USER FAVORITES
-// ============================================================================
-
-export async function getUserFavorites(userId: string): Promise<Venue[]> {
-  const supabase = createClient()
-  
-  const { data: favorites, error } = await supabase
-    .from('user_favorites')
-    .select('venue_id')
-    .eq('user_id', userId)
-  
-  if (error) throw error
-  if (!favorites?.length) return []
-  
-  const { data: venues } = await supabase
-    .from('venues')
-    .select('*')
-    .in('id', favorites.map(f => f.venue_id))
-  
-  return venues ?? []
-}
-
-export async function isFavorite(userId: string, venueId: string): Promise<boolean> {
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('user_favorites')
-    .select('user_id')
-    .eq('user_id', userId)
-    .eq('venue_id', venueId)
-    .maybeSingle()
-  
-  if (error) throw error
-  return !!data
-}
-
-export async function toggleFavorite(userId: string, venueId: string): Promise<boolean> {
-  const supabase = createClient()
-  
-  // Check if already favorited
-  const exists = await isFavorite(userId, venueId)
-  
-  if (exists) {
-    const { error } = await supabase
-      .from('user_favorites')
+      .in(
+        "review_id",
+        reviews.map((r) => r.id),
+      );
+    await supabase
+      .from("review_photos")
       .delete()
-      .eq('user_id', userId)
-      .eq('venue_id', venueId)
-    
-    if (error) throw error
-    return false // Removed
-  } else {
-    const { error } = await supabase
-      .from('user_favorites')
-      .insert({ user_id: userId, venue_id: venueId })
-    
-    if (error) throw error
-    return true // Added
+      .in(
+        "review_id",
+        reviews.map((r) => r.id),
+      );
   }
-}
+  await supabase.from("reviews").delete().eq("user_id", userId);
 
-// ============================================================================
-// TOP 4 VENUES (Profile Feature)
-// ============================================================================
-
-export async function updateTopFour(userId: string, venueIds: string[]): Promise<Profile> {
-  if (venueIds.length > 4) {
-    throw new Error('Máximo de 4 locais permitidos')
+  // 3. Delete list venues and lists
+  const { data: lists } = await supabase
+    .from("lists")
+    .select("id")
+    .eq("user_id", userId);
+  if (lists?.length) {
+    await supabase
+      .from("list_venues")
+      .delete()
+      .in(
+        "list_id",
+        lists.map((l) => l.id),
+      );
   }
-  
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('profiles')
-    .update({ top_four_venues: venueIds })
-    .eq('id', userId)
-    .select()
-    .single()
-  
-  if (error) throw error
-  return data
-}
+  await supabase.from("lists").delete().eq("user_id", userId);
 
-export async function getTopFourVenues(userId: string): Promise<Venue[]> {
-  const supabase = createClient()
-  
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('top_four_venues')
-    .eq('id', userId)
-    .single()
-  
-  if (profileError) throw profileError
-  if (!profile?.top_four_venues?.length) return []
-  
-  const { data: venues, error } = await supabase
-    .from('venues')
-    .select('*')
-    .in('id', profile.top_four_venues)
-  
-  if (error) throw error
-  return venues ?? []
-}
+  // 4. Delete user-created venues and their relationships
+  const { data: venues } = await supabase
+    .from("venues")
+    .select("id")
+    .eq("created_by", userId);
+  if (venues?.length) {
+    await supabase
+      .from("venue_cuisines")
+      .delete()
+      .in(
+        "venue_id",
+        venues.map((v) => v.id),
+      );
+  }
+  await supabase.from("venues").delete().eq("created_by", userId);
 
-// ============================================================================
-// VENUE EDIT HISTORY (Audit Log)
-// ============================================================================
+  // 5. Delete user-created tags and cuisine types
+  await supabase.from("tags").delete().eq("created_by", userId);
+  await supabase.from("cuisine_types").delete().eq("created_by", userId);
 
-export async function getVenueHistory(venueId: string): Promise<VenueEditWithUser[]> {
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('venue_edits')
-    .select('*, user:profiles(*)')
-    .eq('venue_id', venueId)
-    .order('created_at', { ascending: false })
-  
-  if (error) throw error
-  return (data ?? []) as VenueEditWithUser[]
-}
-
-export async function logVenueEdit(
-  venueId: string,
-  userId: string,
-  changes: Record<string, { old: unknown; new: unknown }>
-): Promise<VenueEdit> {
-  const supabase = createClient()
-  
-  const { data, error } = await supabase
-    .from('venue_edits')
-    .insert({ venue_id: venueId, user_id: userId, changes })
-    .select()
-    .single()
-  
-  if (error) throw error
-  return data
-}
-
-// ============================================================================
-// PROFILE SETTINGS (Extended)
-// ============================================================================
-
-export async function updateProfileSettings(
-  userId: string,
-  data: ProfileSettingsFormData
-): Promise<Profile> {
-  const supabase = createClient()
-  
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .update(data)
-    .eq('id', userId)
-    .select()
-    .single()
-  
-  if (error) throw error
-  return profile
+  // 6. Delete profile
+  await supabase.from("profiles").delete().eq("id", userId);
 }

@@ -7,92 +7,63 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
-import { ChefHat, Loader2 } from "lucide-react";
-import { signUpWithInviteKey, validateInviteKey, incrementInviteUsage } from "@/app/actions/auth";
+import { useState } from "react";
+import { ChefHat, Loader2, CheckCircle2 } from "lucide-react";
+
+interface SignUpFormProps extends React.ComponentPropsWithoutRef<"div"> {
+  inviteCode?: string;
+}
 
 export function SignUpForm({
   className,
+  inviteCode,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: SignUpFormProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [repeatPassword, setRepeatPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
-  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const router = useRouter();
-
-  // Check for invite code on mount
-  useEffect(() => {
-    const code = sessionStorage.getItem("invite_code");
-    if (!code) {
-      router.push("/auth/invite?redirect=/auth/sign-up");
-    } else {
-      setInviteCode(code);
-    }
-  }, [router]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
-    if (password !== repeatPassword) {
-      setError("As senhas não coincidem");
-      setIsLoading(false);
-      return;
-    }
-
-    if (!inviteCode) {
-      setError("Código de convite não encontrado. Por favor, volte e insira novamente.");
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const result = await signUpWithInviteKey(email, password, inviteCode);
-      
-      if (!result.success) {
-        setError(result.error || "Ocorreu um erro");
-        setIsLoading(false);
-        return;
-      }
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
 
-      // Clear invite code from session
-      sessionStorage.removeItem("invite_code");
-      router.push("/auth/sign-up-success");
+      if (error) throw error;
+
+      // If sign up is successful and requires email verification
+      if (data.user && !data.session) {
+        setSuccess(true);
+      } else if (data.session) {
+        // If auto-confirmed or no verification needed
+        router.push("/dashboard");
+      }
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Ocorreu um erro");
+      setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    if (!inviteCode) {
-      setError("Código de convite não encontrado");
-      return;
-    }
-
+  const handleGoogleLogin = async () => {
+    const supabase = createClient();
     setIsGoogleLoading(true);
     setError(null);
 
     try {
-      // Validate invite before OAuth
-      const validation = await validateInviteKey(inviteCode);
-      if (!validation.valid) {
-        setError(validation.error || "Código de convite inválido");
-        setIsGoogleLoading(false);
-        return;
-      }
-
-      // Store that we need to increment after OAuth completes
-      // Use cookie so it's accessible in the server-side callback
-      document.cookie = `pending_invite_code=${inviteCode}; path=/; max-age=600; SameSite=Lax`;
-
-      const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -101,16 +72,39 @@ export function SignUpForm({
       });
       if (error) throw error;
     } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "Ocorreu um erro");
+      setError(error instanceof Error ? error.message : "An error occurred");
       setIsGoogleLoading(false);
     }
   };
 
-  // Show loading while checking invite code
-  if (!inviteCode) {
+  if (success) {
     return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div
+        className={cn("flex flex-col gap-6 text-center", className)}
+        {...props}
+      >
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Verifique seu email
+          </h1>
+          <p className="text-muted-foreground">
+            Enviamos um link de confirmação para{" "}
+            <span className="font-medium text-foreground">{email}</span>. Por
+            favor, verifique sua caixa de entrada para ativar sua conta.
+          </p>
+        </div>
+        <div className="pt-4">
+          <Button
+            variant="outline"
+            className="w-full"
+            onClick={() => setSuccess(false)}
+          >
+            Voltar para o cadastro
+          </Button>
+        </div>
       </div>
     );
   }
@@ -123,9 +117,11 @@ export function SignUpForm({
           <ChefHat className="h-6 w-6" />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-semibold tracking-tight">Crie sua conta</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Crie sua conta
+          </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Comece seu diário gastronômico
+            Comece a registrar suas experiências gastronômicas
           </p>
         </div>
       </div>
@@ -135,7 +131,7 @@ export function SignUpForm({
         type="button"
         variant="outline"
         className="w-full h-12 text-base font-medium"
-        onClick={handleGoogleSignUp}
+        onClick={handleGoogleLogin}
         disabled={isGoogleLoading}
       >
         {isGoogleLoading ? (
@@ -160,7 +156,7 @@ export function SignUpForm({
             />
           </svg>
         )}
-        Cadastrar com Google
+        Entrar com Google
       </Button>
 
       {/* Divider */}
@@ -169,9 +165,7 @@ export function SignUpForm({
           <span className="w-full border-t" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-background px-3 text-muted-foreground">
-            ou
-          </span>
+          <span className="bg-background px-3 text-muted-foreground">ou</span>
         </div>
       </div>
 
@@ -191,7 +185,7 @@ export function SignUpForm({
             className="h-12"
           />
         </div>
-        
+
         <div className="space-y-2">
           <Label htmlFor="password" className="text-sm font-medium">
             Senha
@@ -203,30 +197,20 @@ export function SignUpForm({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="h-12"
+            minLength={6}
           />
+          <p className="text-[0.8rem] text-muted-foreground">
+            Mínimo de 6 caracteres
+          </p>
         </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="repeat-password" className="text-sm font-medium">
-            Confirmar Senha
-          </Label>
-          <Input
-            id="repeat-password"
-            type="password"
-            required
-            value={repeatPassword}
-            onChange={(e) => setRepeatPassword(e.target.value)}
-            className="h-12"
-          />
-        </div>
-        
+
         {error && (
           <p className="text-sm text-destructive animate-enter">{error}</p>
         )}
-        
-        <Button 
-          type="submit" 
-          className="w-full h-12 text-base font-medium" 
+
+        <Button
+          type="submit"
+          className="w-full h-12 text-base font-medium"
           disabled={isLoading}
         >
           {isLoading ? (
@@ -235,7 +219,7 @@ export function SignUpForm({
               Criando conta...
             </>
           ) : (
-            "Criar conta"
+            "Cadastrar"
           )}
         </Button>
       </form>

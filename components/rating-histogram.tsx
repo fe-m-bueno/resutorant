@@ -11,9 +11,10 @@ import {
 
 interface RatingHistogramProps {
   data: { rating: number; count: number }[]
+  title?: string
 }
 
-export function RatingHistogram({ data }: RatingHistogramProps) {
+export function RatingHistogram({ data, title }: RatingHistogramProps) {
   const maxCount = Math.max(...data.map((d) => d.count), 1)
   
   const getBarColor = (rating: number) => {
@@ -31,43 +32,42 @@ export function RatingHistogram({ data }: RatingHistogramProps) {
       : 0
 
   return (
-    <div className="w-full">
-      {/* Stats */}
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-sm text-muted-foreground">Média</p>
-          <p className="text-2xl font-bold" style={{ color: getBarColor(averageRating) }}>
+    <div className="w-full space-y-4">
+      {/* Header with Title and Stats */}
+      <div className="flex items-center justify-between gap-4">
+        {title && <h3 className="text-sm font-medium">{title}</h3>}
+        <div className="flex items-baseline gap-2 text-xs sm:text-sm">
+          <span className="text-lg sm:text-xl font-bold leading-none" style={{ color: getBarColor(averageRating) }}>
             {averageRating.toFixed(1)}
-          </p>
-        </div>
-        <div className="text-right">
-          <p className="text-sm text-muted-foreground">Total</p>
-          <p className="text-2xl font-bold">{totalReviews}</p>
+          </span>
+          <span className="font-medium text-muted-foreground">média</span>
+          <span className="text-muted-foreground ml-1">•</span>
+          <span className="font-medium text-foreground ml-1">{totalReviews}</span>
+          <span className="text-muted-foreground">logs</span>
         </div>
       </div>
 
       {/* Chart */}
-      <div className="h-32">
+      <div className="h-14">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
-            layout="vertical"
-            margin={{ top: 0, right: 0, bottom: 0, left: 28 }}
+            margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
           >
-            <XAxis type="number" hide domain={[0, maxCount]} />
-            <YAxis
-              type="category"
+            <XAxis
               dataKey="rating"
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
               tickFormatter={(value) => value.toFixed(1)}
-              width={24}
+              interval={0}
+              height={15}
             />
+            <YAxis type="number" hide domain={[0, maxCount]} />
             <Bar
               dataKey="count"
-              radius={[0, 4, 4, 0]}
-              barSize={10}
+              radius={[2, 2, 0, 0]}
+              barSize={24}
             >
               {data.map((entry, index) => (
                 <Cell
@@ -87,18 +87,12 @@ export function RatingHistogram({ data }: RatingHistogramProps) {
 // Skeleton for loading
 export function RatingHistogramSkeleton() {
   return (
-    <div className="w-full">
-      <div className="flex items-center justify-between mb-4">
-        <div className="space-y-1">
-          <div className="h-4 w-12 bg-muted rounded animate-pulse" />
-          <div className="h-8 w-16 bg-muted rounded animate-pulse" />
-        </div>
-        <div className="space-y-1 text-right">
-          <div className="h-4 w-10 bg-muted rounded animate-pulse ml-auto" />
-          <div className="h-8 w-12 bg-muted rounded animate-pulse" />
-        </div>
+    <div className="w-full space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+        <div className="h-6 w-24 bg-muted rounded animate-pulse" />
       </div>
-      <div className="h-32 bg-muted rounded animate-pulse" />
+      <div className="h-14 bg-muted rounded animate-pulse" />
     </div>
   )
 }
