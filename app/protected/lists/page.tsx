@@ -25,7 +25,7 @@ import { AddLogModal } from "@/components/add-log-modal"
 import { getUserLists, createList, getListWithVenues } from "@/lib/queries"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import type { List, ListWithVenues } from "@/lib/types"
+import type { List } from "@/lib/types"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { listSchema, type ListFormData } from "@/lib/schemas"
@@ -125,7 +125,7 @@ function CreateListModal({
 }) {
   const [isSubmitting, setIsSubmitting] = useState(false)
   
-  const form = useForm<ListFormData>({
+  const form = useForm({
     resolver: zodResolver(listSchema),
     defaultValues: {
       name: "",

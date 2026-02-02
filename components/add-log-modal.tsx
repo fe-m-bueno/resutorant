@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
 import { CalendarIcon, MapPin, Loader2, Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 
@@ -72,7 +71,7 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
   const [isNewVenue, setIsNewVenue] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
 
-  const form = useForm<CreateLogFormData>({
+  const form = useForm({
     resolver: zodResolver(createLogSchema),
     defaultValues: {
       rating: 3,
@@ -107,7 +106,7 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
     }
 
     loadData()
-  }, [open])
+  }, [open, form])
 
   // Search venues
   useEffect(() => {

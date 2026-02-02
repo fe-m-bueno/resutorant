@@ -123,7 +123,6 @@ export type Database = {
           updated_at: string
           username: string | null
           website: string | null
-          top_four_venues: string[] | null
         }
         Insert: {
           avatar_url?: string | null
@@ -133,7 +132,6 @@ export type Database = {
           updated_at?: string
           username?: string | null
           website?: string | null
-          top_four_venues?: string[] | null
         }
         Update: {
           avatar_url?: string | null
@@ -143,124 +141,6 @@ export type Database = {
           updated_at?: string
           username?: string | null
           website?: string | null
-          top_four_venues?: string[] | null
-        }
-        Relationships: []
-      }
-      venue_photos: {
-        Row: {
-          id: string
-          venue_id: string
-          user_id: string
-          storage_path: string
-          caption: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          venue_id: string
-          user_id: string
-          storage_path: string
-          caption?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          venue_id?: string
-          user_id?: string
-          storage_path?: string
-          caption?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      review_comments: {
-        Row: {
-          id: string
-          review_id: string
-          user_id: string
-          text: string
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          review_id: string
-          user_id: string
-          text: string
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          review_id?: string
-          user_id?: string
-          text?: string
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      venue_edits: {
-        Row: {
-          id: string
-          venue_id: string
-          user_id: string | null
-          changes: Json
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          venue_id: string
-          user_id?: string | null
-          changes: Json
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          venue_id?: string
-          user_id?: string | null
-          changes?: Json
-          created_at?: string
-        }
-        Relationships: []
-      }
-      planned_visits: {
-        Row: {
-          user_id: string
-          venue_id: string
-          created_at: string
-        }
-        Insert: {
-          user_id: string
-          venue_id: string
-          created_at?: string
-        }
-        Update: {
-          user_id?: string
-          venue_id?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
-      user_favorites: {
-        Row: {
-          user_id: string
-          venue_id: string
-          created_at: string
-        }
-        Insert: {
-          user_id: string
-          venue_id: string
-          created_at?: string
-        }
-        Update: {
-          user_id?: string
-          venue_id?: string
-          created_at?: string
         }
         Relationships: []
       }
@@ -446,13 +326,6 @@ export type CuisineType = Database['public']['Tables']['cuisine_types']['Row']
 export type List = Database['public']['Tables']['lists']['Row']
 export type Like = Database['public']['Tables']['likes']['Row']
 
-// New table types
-export type VenuePhoto = Database['public']['Tables']['venue_photos']['Row']
-export type ReviewComment = Database['public']['Tables']['review_comments']['Row']
-export type VenueEdit = Database['public']['Tables']['venue_edits']['Row']
-export type PlannedVisit = Database['public']['Tables']['planned_visits']['Row']
-export type UserFavorite = Database['public']['Tables']['user_favorites']['Row']
-
 // Extended types with relations
 export type ReviewWithVenue = Review & {
   venue: Venue
@@ -466,16 +339,4 @@ export type VenueWithCuisines = Venue & {
 
 export type ListWithVenues = List & {
   venues?: VenueWithCuisines[]
-}
-
-export type ReviewCommentWithUser = ReviewComment & {
-  user: Profile
-}
-
-export type VenuePhotoWithUser = VenuePhoto & {
-  user: Profile
-}
-
-export type VenueEditWithUser = VenueEdit & {
-  user: Profile | null
 }

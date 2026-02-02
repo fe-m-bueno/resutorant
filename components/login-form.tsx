@@ -183,7 +183,7 @@ export function LoginForm({
       <p className="text-center text-sm text-muted-foreground">
         Não tem uma conta?{" "}
         <Link
-          href="/auth/invite?redirect=/auth/sign-up"
+          href="/auth/sign-up"
           className="font-medium text-foreground hover:text-primary transition-colors"
         >
           Cadastre-se
