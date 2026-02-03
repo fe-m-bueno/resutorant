@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ReviewCard, ReviewCardSkeleton } from '@/components/review-card';
 import { BottomNav } from '@/components/bottom-nav';
 import { ThemeSwitcher } from '@/components/theme-switcher';
-import { getProfile, getRecentReviews } from '@/lib/queries';
+import { getProfile, getRecentReviews, toggleLike } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import type { Profile, ReviewWithVenue } from '@/lib/types';
@@ -103,6 +103,46 @@ export default function DashboardPage() {
     setEditingLog(log);
     setIsModalOpen(true);
   }, []);
+
+  const handleLike = useCallback(
+    async (review: ReviewWithVenue) => {
+      if (!profile) return;
+
+      const isLiked = review.likes?.some((l) => l.user_id === profile.id);
+
+      // Optimistic update
+      setReviews((prev) =>
+        prev.map((r) => {
+          if (r.id === review.id) {
+            const newLikes = isLiked
+              ? (r.likes || []).filter((l) => l.user_id !== profile.id)
+              : [
+                  ...(r.likes || []),
+                  { user_id: profile.id, user: { username: profile.username } },
+                ];
+            return { ...r, likes: newLikes };
+          }
+          return r;
+        }),
+      );
+
+      try {
+        await toggleLike(profile.id, review.id);
+      } catch (error) {
+        console.error('Error toggling like:', error);
+        // Revert on error
+        setReviews((prev) =>
+          prev.map((r) => {
+            if (r.id === review.id) {
+              return review; // Revert to original object
+            }
+            return r;
+          }),
+        );
+      }
+    },
+    [profile],
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -278,6 +318,8 @@ export default function DashboardPage() {
                     showProfile={review.user_id !== profile?.id}
                     onEdit={handleEditLog}
                     currentUserId={profile?.id}
+                    currentUserProfile={profile ?? undefined}
+                    onLike={() => handleLike(review)}
                   />
                 ))
               ) : (

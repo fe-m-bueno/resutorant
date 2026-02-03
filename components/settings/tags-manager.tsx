@@ -1,20 +1,20 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Pencil, Trash2, X, Check } from "lucide-react";
-import { toast } from "sonner";
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Plus, Pencil, Trash2, X, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormMessage,
-} from "@/components/ui/form";
+} from '@/components/ui/form';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,13 +25,19 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+} from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { ColorPicker } from '@/components/ui/color-picker';
 
-import { createTag, deleteTag, getUserCreatedTags, updateTag } from "@/lib/queries";
-import { tagSchema, type TagFormData } from "@/lib/schemas";
-import type { Tag } from "@/lib/types";
-import { createClient } from "@/lib/supabase/client";
+import {
+  createTag,
+  deleteTag,
+  getUserCreatedTags,
+  updateTag,
+} from '@/lib/queries';
+import { tagSchema, type TagFormData } from '@/lib/schemas';
+import type { Tag } from '@/lib/types';
+import { createClient } from '@/lib/supabase/client';
 
 export function TagsManager() {
   const [tags, setTags] = useState<Tag[]>([]);
@@ -41,8 +47,8 @@ export function TagsManager() {
   const form = useForm<TagFormData>({
     resolver: zodResolver(tagSchema),
     defaultValues: {
-      name: "",
-      color: "#6366f1",
+      name: '',
+      color: '#6366f1',
     },
   });
 
@@ -58,8 +64,8 @@ export function TagsManager() {
         setTags(userTags);
       }
     } catch (error) {
-      console.error("Error loading tags:", error);
-      toast.error("Erro ao carregar tags");
+      console.error('Error loading tags:', error);
+      toast.error('Erro ao carregar tags');
     } finally {
       setIsLoading(false);
     }
@@ -80,18 +86,18 @@ export function TagsManager() {
 
       if (editingId) {
         await updateTag(editingId, data);
-        toast.success("Tag atualizada!");
+        toast.success('Tag atualizada!');
         setEditingId(null);
       } else {
         await createTag({ ...data, created_by: user.id });
-        toast.success("Tag criada!");
+        toast.success('Tag criada!');
       }
 
-      form.reset({ name: "", color: "#6366f1" });
+      form.reset({ name: '', color: '#6366f1' });
       loadTags();
     } catch (error) {
-      console.error("Error saving tag:", error);
-      toast.error("Erro ao salvar tag");
+      console.error('Error saving tag:', error);
+      toast.error('Erro ao salvar tag');
     }
   };
 
@@ -99,23 +105,23 @@ export function TagsManager() {
     setEditingId(tag.id);
     form.reset({
       name: tag.name,
-      color: tag.color || "#6366f1",
+      color: tag.color || '#6366f1',
     });
   };
 
   const cancelEditing = () => {
     setEditingId(null);
-    form.reset({ name: "", color: "#6366f1" });
+    form.reset({ name: '', color: '#6366f1' });
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteTag(id);
-      toast.success("Tag removida!");
+      toast.success('Tag removida!');
       loadTags();
     } catch (error) {
-      console.error("Error deleting tag:", error);
-      toast.error("Erro ao remover tag");
+      console.error('Error deleting tag:', error);
+      toast.error('Erro ao remover tag');
     }
   };
 
@@ -130,51 +136,80 @@ export function TagsManager() {
   return (
     <div className="space-y-6">
       <div className="space-y-4 rounded-lg border p-4">
-        <h3 className="font-semibold text-lg">{editingId ? "Editar Tag" : "Nova Tag"}</h3>
+        <h3 className="font-semibold text-lg">
+          {editingId ? 'Editar Tag' : 'Nova Tag'}
+        </h3>
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="flex items-start gap-4"
-          >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem className="flex-1">
-                  <FormControl>
-                    <Input placeholder="Nome da tag" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormControl>
-                    <div className="flex items-center gap-2">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <div className="flex items-start gap-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormControl>
                       <Input
-                        type="color"
-                        className="h-10 w-12 p-1"
+                        placeholder="Nome da tag"
+                        className="h-12 text-lg px-4"
                         {...field}
                       />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex gap-2">
-              <Button type="submit" size="icon">
-                {editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              </Button>
-              {editingId && (
-                <Button type="button" variant="outline" size="icon" onClick={cancelEditing}>
-                  <X className="h-4 w-4" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <ColorPicker
+                        value={field.value}
+                        onChange={field.onChange}
+                        className="w-24 h-12"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="flex gap-2">
+                <Button type="submit" size="icon" className="h-12 w-12">
+                  {editingId ? (
+                    <Check className="h-5 w-5" />
+                  ) : (
+                    <Plus className="h-5 w-5" />
+                  )}
                 </Button>
-              )}
+                {editingId && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12"
+                    onClick={cancelEditing}
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center gap-3 bg-muted/30 rounded-xl p-6 border border-dashed border-muted-foreground/20">
+              <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground/50">
+                Visualização ao Vivo
+              </span>
+              <Badge
+                style={{
+                  backgroundColor: form.watch('color') || '#6366f1',
+                  color: '#fff',
+                  boxShadow: `0 4px 14px -2px ${form.watch('color')}40`,
+                }}
+                className="text-xl px-6 py-2 transition-all duration-300"
+              >
+                {form.watch('name') || 'Nova Tag'}
+              </Badge>
             </div>
           </form>
         </Form>
@@ -195,8 +230,8 @@ export function TagsManager() {
               >
                 <Badge
                   style={{
-                    backgroundColor: tag.color || "var(--primary)",
-                    color: "#fff",
+                    backgroundColor: tag.color || 'var(--primary)',
+                    color: '#fff',
                   }}
                   className="text-base px-3 py-1"
                 >
@@ -212,7 +247,11 @@ export function TagsManager() {
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>
@@ -220,7 +259,8 @@ export function TagsManager() {
                       <AlertDialogHeader>
                         <AlertDialogTitle>Excluir tag?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Essa ação não pode ser desfeita. A tag será removida de todas as avaliações.
+                          Essa ação não pode ser desfeita. A tag será removida
+                          de todas as avaliações.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>

@@ -113,7 +113,7 @@ export async function getReviewsByUser(
   const { data: reviews, error } = await supabase
     .from('reviews')
     .select(
-      '*, venue:venues(*, cuisines:venue_cuisines(cuisine:cuisine_types(*))), tags:review_tags(tag:tags(*))',
+      '*, venue:venues(*, cuisines:venue_cuisines(cuisine:cuisine_types(*))), tags:review_tags(tag:tags(*)), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
     )
     .eq('user_id', userId)
     .order('visited_at', { ascending: false });
@@ -130,6 +130,8 @@ export async function getReviewsByUser(
       ...review,
       venue: { ...venue, cuisines },
       tags: review.tags?.map((t: any) => t.tag).filter(Boolean) || [],
+      _count: { comments: review.comments?.[0]?.count || 0 }, // Map Supabase response to _count
+      author: review.author,
     };
   }) as ReviewWithVenue[];
 }
@@ -141,7 +143,9 @@ export async function getRecentReviews(
 
   const { data: reviews, error } = await supabase
     .from('reviews')
-    .select('*, venue:venues(*), tags:review_tags(tag:tags(*))')
+    .select(
+      '*, venue:venues(*), tags:review_tags(tag:tags(*)), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
+    )
     .order('visited_at', { ascending: false })
     .limit(limit);
 
@@ -151,6 +155,8 @@ export async function getRecentReviews(
   return reviews.map((review) => ({
     ...review,
     tags: review.tags?.map((t: any) => t.tag).filter(Boolean) || [],
+    _count: { comments: (review.comments as any)?.[0]?.count || 0 },
+    author: (review as any).author,
   })) as ReviewWithVenue[];
 }
 
@@ -160,6 +166,7 @@ export async function createReview(data: {
   rating: number;
   text_review?: string;
   visited_at?: string;
+  price_level: number;
   is_private: boolean;
   tag_ids?: string[];
 }): Promise<Review> {
@@ -209,6 +216,7 @@ export async function updateLog(
       rating: data.rating,
       text_review: data.text_review,
       visited_at: data.visited_at,
+      price_level: data.price_level,
       is_private: data.is_private,
     })
     .eq('id', logId);
@@ -232,6 +240,44 @@ export async function updateLog(
 
     if (insertTagsError) throw insertTagsError;
   }
+}
+
+export async function deleteLog(logId: string, userId: string): Promise<void> {
+  const supabase = createClient();
+
+  // Validate ownership
+  const { data: existingReview, error: fetchError } = await supabase
+    .from('reviews')
+    .select('user_id')
+    .eq('id', logId)
+    .single();
+
+  if (fetchError || !existingReview) throw new Error('Review not found');
+  if (existingReview.user_id !== userId) throw new Error('Unauthorized');
+
+  // Delete related data first (foreign key constraints usually handle this if set to CASCADE,
+  // but let's be explicit to be safe or if constraints aren't set up that way)
+
+  // 1. Likes
+  await supabase.from('likes').delete().eq('review_id', logId);
+
+  // 2. Review Tags
+  await supabase.from('review_tags').delete().eq('review_id', logId);
+
+  // 3. Review Photos
+  await supabase.from('review_photos').delete().eq('review_id', logId);
+
+  // 4. Comments
+  // Comments might have likes too, so let's delete comments directly.
+  await supabase.from('comments').delete().eq('log_id', logId);
+
+  // 5. Delete the review itself
+  const { error: deleteError } = await supabase
+    .from('reviews')
+    .delete()
+    .eq('id', logId);
+
+  if (deleteError) throw deleteError;
 }
 
 export async function getUserRatingDistribution(
@@ -552,7 +598,9 @@ export async function searchReviews(
   // Search reviews by text_review or by matching venue
   let reviewsQuery = supabase
     .from('reviews')
-    .select('*, venue:venues(*)')
+    .select(
+      '*, venue:venues(*), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
+    )
     .order('visited_at', { ascending: false })
     .limit(limit);
 
@@ -585,10 +633,19 @@ export async function searchReviews(
             tagLinks.map((l) => l.tag_id),
           );
 
-        return { ...review, tags: tags ?? [] };
+        return {
+          ...review,
+          tags: tags ?? [],
+          _count: { comments: (review as any).comments?.[0]?.count || 0 },
+        };
       }
 
-      return { ...review, tags: [] };
+      return {
+        ...review,
+        tags: [],
+        _count: { comments: (review as any).comments?.[0]?.count || 0 },
+        author: (review as any).author,
+      };
     }),
   );
 
@@ -642,11 +699,54 @@ export async function createLog(
     rating: data.rating,
     text_review: data.text_review,
     visited_at: data.visited_at,
+    price_level: data.price_level,
     is_private: data.is_private,
     tag_ids: data.tag_ids,
   });
 
   return { venue, review };
+}
+
+// ============================================================================
+// LIKES
+// ============================================================================
+
+export async function toggleLike(
+  userId: string,
+  reviewId: string,
+): Promise<{ added: boolean }> {
+  const supabase = createClient();
+
+  // Check if like exists
+  const { data: existingLike, error: checkError } = await supabase
+    .from('likes')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('review_id', reviewId)
+    .single();
+
+  if (checkError && checkError.code !== 'PGRST116') {
+    throw checkError;
+  }
+
+  if (existingLike) {
+    // Unlike
+    const { error: deleteError } = await supabase
+      .from('likes')
+      .delete()
+      .eq('id', existingLike.id);
+
+    if (deleteError) throw deleteError;
+    return { added: false };
+  } else {
+    // Like
+    const { error: insertError } = await supabase
+      .from('likes')
+      .insert({ user_id: userId, review_id: reviewId });
+
+    if (insertError) throw insertError;
+    return { added: true };
+  }
 }
 
 // ============================================================================
@@ -721,4 +821,22 @@ export async function deleteAccount(userId: string): Promise<void> {
 
   // 6. Delete profile
   await supabase.from('profiles').delete().eq('id', userId);
+}
+
+// ============================================================================
+// COMMENTS
+// ============================================================================
+
+export async function getComments(logId: string) {
+  const supabase = createClient();
+
+  const { data: comments, error } = await supabase
+    .from('comments')
+    .select('*, user:profiles(*), likes:comment_likes(user_id)')
+    .eq('log_id', logId)
+    .order('created_at', { ascending: true });
+
+  if (error) throw error;
+
+  return comments || [];
 }

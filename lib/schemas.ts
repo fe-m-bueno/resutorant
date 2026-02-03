@@ -1,4 +1,4 @@
-import { z } from 'zod'
+import { z } from 'zod';
 
 // Venue Types Enum
 export const VENUE_TYPES = [
@@ -13,9 +13,9 @@ export const VENUE_TYPES = [
   'rotisseria',
   'padaria',
   'pub',
-] as const
+] as const;
 
-export const venueTypeSchema = z.enum(VENUE_TYPES)
+export const venueTypeSchema = z.enum(VENUE_TYPES);
 
 // Location Schema
 export const locationSchema = z.object({
@@ -23,7 +23,7 @@ export const locationSchema = z.object({
   neighborhood: z.string().optional(),
   address: z.string().optional(),
   country: z.string().optional(),
-})
+});
 
 // Venue Schema
 export const venueSchema = z.object({
@@ -31,9 +31,9 @@ export const venueSchema = z.object({
   type: venueTypeSchema,
   location: locationSchema,
   google_place_id: z.string().optional(),
-})
+});
 
-export type VenueFormData = z.infer<typeof venueSchema>
+export type VenueFormData = z.infer<typeof venueSchema>;
 
 // Review Schema
 export const reviewSchema = z.object({
@@ -45,37 +45,44 @@ export const reviewSchema = z.object({
     .refine((val) => val % 0.5 === 0, 'Nota deve ser múltiplo de 0.5'),
   text_review: z.string().optional(),
   visited_at: z.string().optional(),
+  price_level: z.number().int().min(1).max(5).default(3),
   is_private: z.boolean().default(false),
   tag_ids: z.array(z.string().uuid()).optional(),
-})
+});
 
-export type ReviewFormData = z.infer<typeof reviewSchema>
+export type ReviewFormData = z.infer<typeof reviewSchema>;
 
 // Create Review with New Venue
-export const createLogSchema = z.object({
-  // Venue info (can be existing or new)
-  venue_id: z.string().uuid().optional(),
-  venue_name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres').optional(),
-  venue_type: venueTypeSchema.optional(),
-  venue_location: locationSchema.optional(),
-  
-  // Review info
-  rating: z
-    .number()
-    .min(0.5, 'Nota mínima é 0.5')
-    .max(5, 'Nota máxima é 5.0')
-    .refine((val) => val % 0.5 === 0, 'Nota deve ser múltiplo de 0.5'),
-  text_review: z.string().optional(),
-  visited_at: z.string().optional(),
-  is_private: z.boolean().default(false),
-  tag_ids: z.array(z.string().uuid()).optional(),
-  cuisine_ids: z.array(z.string().uuid()).optional(),
-}).refine(
-  (data) => data.venue_id || data.venue_name,
-  { message: 'Selecione ou crie um local', path: ['venue_name'] }
-)
+export const createLogSchema = z
+  .object({
+    // Venue info (can be existing or new)
+    venue_id: z.string().uuid().optional(),
+    venue_name: z
+      .string()
+      .min(2, 'Nome deve ter pelo menos 2 caracteres')
+      .optional(),
+    venue_type: venueTypeSchema.optional(),
+    venue_location: locationSchema.optional(),
 
-export type CreateLogFormData = z.infer<typeof createLogSchema>
+    // Review info
+    rating: z
+      .number()
+      .min(0.5, 'Nota mínima é 0.5')
+      .max(5, 'Nota máxima é 5.0')
+      .refine((val) => val % 0.5 === 0, 'Nota deve ser múltiplo de 0.5'),
+    text_review: z.string().optional(),
+    visited_at: z.string().optional(),
+    price_level: z.number().int().min(1).max(5).default(3),
+    is_private: z.boolean().default(false),
+    tag_ids: z.array(z.string().uuid()).optional(),
+    cuisine_ids: z.array(z.string().uuid()).optional(),
+  })
+  .refine((data) => data.venue_id || data.venue_name, {
+    message: 'Selecione ou crie um local',
+    path: ['venue_name'],
+  });
+
+export type CreateLogFormData = z.infer<typeof createLogSchema>;
 
 // Profile Schema
 export const profileSchema = z.object({
@@ -87,17 +94,17 @@ export const profileSchema = z.object({
   bio: z.string().max(160, 'Bio deve ter no máximo 160 caracteres').optional(),
   website: z.string().url('URL inválida').optional().or(z.literal('')),
   avatar_url: z.string().url().optional(),
-})
+});
 
-export type ProfileFormData = z.infer<typeof profileSchema>
+export type ProfileFormData = z.infer<typeof profileSchema>;
 
 // Tag Schema
 export const tagSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(30, 'Nome muito longo'),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Cor inválida'),
-})
+});
 
-export type TagFormData = z.infer<typeof tagSchema>
+export type TagFormData = z.infer<typeof tagSchema>;
 
 // List Schema
 export const listSchema = z.object({
@@ -105,7 +112,6 @@ export const listSchema = z.object({
   description: z.string().max(200, 'Descrição muito longa').optional(),
   icon: z.string().optional(),
   is_public: z.boolean(),
-})
+});
 
-export type ListFormData = z.infer<typeof listSchema>
-
+export type ListFormData = z.infer<typeof listSchema>;

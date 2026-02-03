@@ -1,21 +1,21 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Pencil, Trash2, X, Check } from "lucide-react";
-import { toast } from "sonner";
-import { z } from "zod";
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Loader2, Plus, Pencil, Trash2, X, Check } from 'lucide-react';
+import { toast } from 'sonner';
+import { z } from 'zod';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormMessage,
-} from "@/components/ui/form";
+} from '@/components/ui/form';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,15 +26,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 
-import { createCuisine, deleteCuisine, getUserCreatedCuisines, updateCuisine } from "@/lib/queries";
-import type { CuisineType } from "@/lib/types";
-import { createClient } from "@/lib/supabase/client";
+import {
+  createCuisine,
+  deleteCuisine,
+  getUserCreatedCuisines,
+  updateCuisine,
+} from '@/lib/queries';
+import type { CuisineType } from '@/lib/types';
+import { createClient } from '@/lib/supabase/client';
+import { EmojiPicker } from '@/components/ui/emoji-picker';
+import { Twemoji } from '@/components/ui/twemoji';
 
 // Inline schema since it's simple and specific to this form
 const cuisineFormSchema = z.object({
-  name: z.string().min(1, "Nome é obrigatório").max(30, "Nome muito longo"),
+  name: z.string().min(1, 'Nome é obrigatório').max(30, 'Nome muito longo'),
   icon: z.string().optional(),
 });
 
@@ -48,8 +55,8 @@ export function CuisinesManager() {
   const form = useForm<CuisineFormData>({
     resolver: zodResolver(cuisineFormSchema),
     defaultValues: {
-      name: "",
-      icon: "",
+      name: '',
+      icon: '',
     },
   });
 
@@ -65,8 +72,8 @@ export function CuisinesManager() {
         setCuisines(userCuisines);
       }
     } catch (error) {
-      console.error("Error loading cuisines:", error);
-      toast.error("Erro ao carregar culinárias");
+      console.error('Error loading cuisines:', error);
+      toast.error('Erro ao carregar culinárias');
     } finally {
       setIsLoading(false);
     }
@@ -87,18 +94,18 @@ export function CuisinesManager() {
 
       if (editingId) {
         await updateCuisine(editingId, data);
-        toast.success("Culinária atualizada!");
+        toast.success('Culinária atualizada!');
         setEditingId(null);
       } else {
         await createCuisine({ ...data, created_by: user.id });
-        toast.success("Culinária criada!");
+        toast.success('Culinária criada!');
       }
 
-      form.reset({ name: "", icon: "" });
+      form.reset({ name: '', icon: '' });
       loadCuisines();
     } catch (error) {
-      console.error("Error saving cuisine:", error);
-      toast.error("Erro ao salvar culinária");
+      console.error('Error saving cuisine:', error);
+      toast.error('Erro ao salvar culinária');
     }
   };
 
@@ -106,23 +113,23 @@ export function CuisinesManager() {
     setEditingId(cuisine.id);
     form.reset({
       name: cuisine.name,
-      icon: cuisine.icon || "",
+      icon: cuisine.icon || '',
     });
   };
 
   const cancelEditing = () => {
     setEditingId(null);
-    form.reset({ name: "", icon: "" });
+    form.reset({ name: '', icon: '' });
   };
 
   const handleDelete = async (id: string) => {
     try {
       await deleteCuisine(id);
-      toast.success("Culinária removida!");
+      toast.success('Culinária removida!');
       loadCuisines();
     } catch (error) {
-      console.error("Error deleting cuisine:", error);
-      toast.error("Erro ao remover culinária");
+      console.error('Error deleting cuisine:', error);
+      toast.error('Erro ao remover culinária');
     }
   };
 
@@ -137,7 +144,9 @@ export function CuisinesManager() {
   return (
     <div className="space-y-6">
       <div className="space-y-4 rounded-lg border p-4">
-        <h3 className="font-semibold text-lg">{editingId ? "Editar Culinária" : "Nova Culinária"}</h3>
+        <h3 className="font-semibold text-lg">
+          {editingId ? 'Editar Culinária' : 'Nova Culinária'}
+        </h3>
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(onSubmit)}
@@ -160,9 +169,12 @@ export function CuisinesManager() {
                 control={form.control}
                 name="icon"
                 render={({ field }) => (
-                  <FormItem className="w-24">
+                  <FormItem className="flex flex-col">
                     <FormControl>
-                      <Input placeholder="Ícone" {...field} />
+                      <EmojiPicker
+                        value={field.value}
+                        onChange={field.onChange}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -171,10 +183,19 @@ export function CuisinesManager() {
             </div>
             <div className="flex gap-2">
               <Button type="submit" size="icon">
-                {editingId ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                {editingId ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
               </Button>
               {editingId && (
-                <Button type="button" variant="outline" size="icon" onClick={cancelEditing}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={cancelEditing}
+                >
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -197,8 +218,8 @@ export function CuisinesManager() {
                 className="flex items-center justify-between rounded-lg border p-3 bg-card"
               >
                 <div className="flex items-center gap-2">
-                    <span className="text-xl">{cuisine.icon || "🍽️"}</span>
-                    <span className="font-medium">{cuisine.name}</span>
+                  <Twemoji emoji={cuisine.icon || '🍽️'} className="h-5 w-5" />
+                  <span className="font-medium">{cuisine.name}</span>
                 </div>
                 <div className="flex gap-2">
                   <Button
@@ -210,7 +231,11 @@ export function CuisinesManager() {
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive hover:text-destructive"
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </AlertDialogTrigger>

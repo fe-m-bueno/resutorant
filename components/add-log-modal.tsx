@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, MapPin, Loader2, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,8 @@ import {
   getCuisineTypes,
   searchVenues,
   createTag,
+  createCuisine,
+  deleteLog,
 } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/client';
 import type { Tag, CuisineType, Venue, ReviewWithVenue } from '@/lib/types';
@@ -80,6 +83,7 @@ export function AddLogModal({
   logToEdit,
 }: AddLogModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [tags, setTags] = useState<Tag[]>([]);
   const [cuisines, setCuisines] = useState<CuisineType[]>([]);
   const [venueSearch, setVenueSearch] = useState('');
@@ -87,6 +91,7 @@ export function AddLogModal({
   const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
   const [isNewVenue, setIsNewVenue] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [priceHoverValue, setPriceHoverValue] = useState<number | null>(null);
 
   const form = useForm({
     resolver: zodResolver(createLogSchema),
@@ -99,6 +104,7 @@ export function AddLogModal({
       text_review: '',
       venue_id: undefined as string | undefined, // Explicit type for TS
       venue_name: undefined as string | undefined,
+      price_level: 3,
     },
   });
 
@@ -142,6 +148,7 @@ export function AddLogModal({
         logToEdit.visited_at ? logToEdit.visited_at.split('T')[0] : '',
       );
       form.setValue('is_private', logToEdit.is_private);
+      form.setValue('price_level', logToEdit.price_level ?? 3);
       form.setValue('tag_ids', logToEdit.tags?.map((t) => t.id) || []);
     } else if (open && !logToEdit) {
       // Reset defaults for creation if not editing
@@ -197,6 +204,22 @@ export function AddLogModal({
     return newTag;
   };
 
+  const handleCreateCuisine = async (name: string): Promise<Tag> => {
+    if (!userId) throw new Error('User not logged in');
+    const newCuisine = await createCuisine({
+      name,
+      created_by: userId,
+    });
+    setCuisines((prev) => [...prev, newCuisine]);
+    return {
+      id: newCuisine.id,
+      name: newCuisine.name,
+      color: '#f59e0b',
+      created_at: newCuisine.created_at,
+      created_by: newCuisine.created_by,
+    };
+  };
+
   const onSubmit = async (data: CreateLogFormData) => {
     if (!userId) {
       toast.error('Você precisa estar logado');
@@ -228,6 +251,31 @@ export function AddLogModal({
     }
   };
 
+  const handleDelete = async () => {
+    if (!logToEdit || !userId) return;
+
+    if (
+      !confirm(
+        'Tem certeza que deseja excluir este log? Esta ação não pode ser desfeita.',
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await deleteLog(logToEdit.id, userId);
+      toast.success('Log excluído com sucesso!');
+      onOpenChange(false);
+      onSuccess?.();
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir log.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const handleReset = () => {
     form.reset({
       rating: 3,
@@ -238,6 +286,7 @@ export function AddLogModal({
       text_review: '',
       venue_id: undefined,
       venue_name: undefined,
+      price_level: 3,
     });
     setSelectedVenue(null);
     setVenueSearch('');
@@ -401,6 +450,7 @@ export function AddLogModal({
                       }))}
                       selectedIds={form.watch('cuisine_ids') ?? []}
                       onChange={(ids) => form.setValue('cuisine_ids', ids)}
+                      onCreateTag={handleCreateCuisine}
                       placeholder="Adicionar culinária..."
                     />
                   </div>
@@ -410,24 +460,72 @@ export function AddLogModal({
 
             <Separator />
 
-            {/* Rating */}
-            <FormField
-              control={form.control}
-              name="rating"
-              render={({ field }) => (
-                <FormItem className="flex flex-col items-center">
-                  <FormLabel>Nota</FormLabel>
-                  <FormControl>
-                    <RatingInput
-                      value={field.value}
-                      onChange={field.onChange}
-                      size="lg"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Rating and Price Level */}
+            <div className="flex flex-col gap-6">
+              <FormField
+                control={form.control}
+                name="rating"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col items-center">
+                    <FormLabel className="font-bold">Nota</FormLabel>
+                    <FormControl>
+                      <RatingInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        size="lg"
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="price_level"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col items-center">
+                    <FormLabel className="font-bold">Faixa de Preço</FormLabel>
+                    <FormControl>
+                      <div
+                        className="flex gap-1 pt-2"
+                        onMouseLeave={() => setPriceHoverValue(null)}
+                      >
+                        {[1, 2, 3, 4, 5].map((level) => {
+                          const value = field.value ?? 3;
+                          const displayValue = priceHoverValue ?? value;
+                          const isActive = displayValue >= level;
+                          const colors = [
+                            'text-green-500',
+                            'text-green-400',
+                            'text-yellow-400',
+                            'text-orange-500',
+                            'text-red-500',
+                          ];
+                          return (
+                            <button
+                              key={level}
+                              type="button"
+                              onMouseEnter={() => setPriceHoverValue(level)}
+                              onClick={() => field.onChange(level)}
+                              className={cn(
+                                'text-2xl font-bold transition-all hover:scale-110',
+                                isActive
+                                  ? colors[displayValue - 1]
+                                  : 'text-muted-foreground/30',
+                              )}
+                            >
+                              $
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             {/* Review text */}
             <FormField
@@ -522,10 +620,30 @@ export function AddLogModal({
                   handleReset();
                   onOpenChange(false);
                 }}
+                disabled={isSubmitting || isDeleting}
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="flex-1" disabled={isSubmitting}>
+              {isEditing && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  className="flex-0 px-3"
+                  onClick={handleDelete}
+                  disabled={isSubmitting || isDeleting}
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Excluir'
+                  )}
+                </Button>
+              )}
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={isSubmitting || isDeleting}
+              >
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />

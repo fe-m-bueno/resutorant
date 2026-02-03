@@ -178,7 +178,7 @@ export default function ProfilePage() {
   });
 
   // Calculate rating distribution for histogram
-  const ratingDistribution = [5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5].map(
+  const ratingDistribution = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map(
     (rating) => ({
       rating,
       count: reviews.filter((r) => r.rating === rating).length,
@@ -361,6 +361,7 @@ export default function ProfilePage() {
                       review={review}
                       onEdit={handleEditLog}
                       currentUserId={profile?.id}
+                      currentUserProfile={profile ?? undefined}
                     />
                   ))}
                 </div>
@@ -390,6 +391,7 @@ export default function ProfilePage() {
                       review={review}
                       onEdit={handleEditLog}
                       currentUserId={profile?.id}
+                      currentUserProfile={profile ?? undefined}
                     />
                   ))}
                 </div>
@@ -409,6 +411,7 @@ export default function ProfilePage() {
                       review={review}
                       onEdit={handleEditLog}
                       currentUserId={profile?.id}
+                      currentUserProfile={profile ?? undefined}
                     />
                   ))}
                 </div>

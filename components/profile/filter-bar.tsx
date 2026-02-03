@@ -206,7 +206,7 @@ export function FilterBar({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
           <Input
             placeholder="Buscar..."
-            className="h-10 sm:h-11 pl-10 bg-accent/30 border-transparent focus-visible:bg-background focus-visible:border-input transition-all duration-300 rounded-xl text-sm"
+            className="h-10 sm:h-11 pl-10 bg-accent/30 border-accent focus-visible:bg-background focus-visible:border-input transition-all duration-300 rounded-xl text-sm"
             onChange={handleSearch}
           />
         </div>
