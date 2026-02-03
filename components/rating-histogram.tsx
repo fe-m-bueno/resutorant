@@ -1,5 +1,6 @@
-"use client"
+'use client';
 
+import { useState } from 'react';
 import {
   BarChart,
   Bar,
@@ -7,29 +8,41 @@ import {
   YAxis,
   ResponsiveContainer,
   Cell,
-} from "recharts"
+  Tooltip,
+} from 'recharts';
 
 interface RatingHistogramProps {
-  data: { rating: number; count: number }[]
-  title?: string
+  data: { rating: number; count: number }[];
+  title?: string;
+  /* The currently selected rating filter (if any) */
+  selectedRating?: number | null;
+  /* Callback when a bar is clicked */
+  onRatingClick?: (rating: number) => void;
 }
 
-export function RatingHistogram({ data, title }: RatingHistogramProps) {
-  const maxCount = Math.max(...data.map((d) => d.count), 1)
-  
-  const getBarColor = (rating: number) => {
-    if (rating >= 4.5) return "hsl(142, 76%, 36%)" // emerald
-    if (rating >= 3.5) return "hsl(84, 81%, 44%)" // lime
-    if (rating >= 2.5) return "hsl(48, 96%, 53%)" // yellow
-    if (rating >= 1.5) return "hsl(25, 95%, 53%)" // orange
-    return "hsl(0, 84%, 60%)" // red
-  }
+export function RatingHistogram({
+  data,
+  title,
+  selectedRating,
+  onRatingClick,
+}: RatingHistogramProps) {
+  const [hoveredRating, setHoveredRating] = useState<number | null>(null);
 
-  const totalReviews = data.reduce((sum, d) => sum + d.count, 0)
+  const maxCount = Math.max(...data.map((d) => d.count), 1);
+
+  const getBarColor = (rating: number) => {
+    if (rating >= 4.5) return 'hsl(142, 76%, 36%)'; // emerald
+    if (rating >= 3.5) return 'hsl(84, 81%, 44%)'; // lime
+    if (rating >= 2.5) return 'hsl(48, 96%, 53%)'; // yellow
+    if (rating >= 1.5) return 'hsl(25, 95%, 53%)'; // orange
+    return 'hsl(0, 84%, 60%)'; // red
+  };
+
+  const totalReviews = data.reduce((sum, d) => sum + d.count, 0);
   const averageRating =
     totalReviews > 0
       ? data.reduce((sum, d) => sum + d.rating * d.count, 0) / totalReviews
-      : 0
+      : 0;
 
   return (
     <div className="w-full space-y-4">
@@ -37,29 +50,56 @@ export function RatingHistogram({ data, title }: RatingHistogramProps) {
       <div className="flex items-center justify-between gap-4">
         {title && <h3 className="text-sm font-medium">{title}</h3>}
         <div className="flex items-baseline gap-2 text-xs sm:text-sm">
-          <span className="text-lg sm:text-xl font-bold leading-none" style={{ color: getBarColor(averageRating) }}>
+          <span
+            className="text-lg sm:text-xl font-bold leading-none"
+            style={{ color: getBarColor(averageRating) }}
+          >
             {averageRating.toFixed(1)}
           </span>
           <span className="font-medium text-muted-foreground">média</span>
           <span className="text-muted-foreground ml-1">•</span>
-          <span className="font-medium text-foreground ml-1">{totalReviews}</span>
+          <span className="font-medium text-foreground ml-1">
+            {totalReviews}
+          </span>
           <span className="text-muted-foreground">logs</span>
         </div>
       </div>
 
       {/* Chart */}
-      <div className="h-14">
+      <div className="h-14 [&_*]:outline-none focus:outline-none" tabIndex={-1}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
             margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
+            onMouseLeave={() => setHoveredRating(null)}
+            style={{ outline: 'none' }}
           >
+            <Tooltip
+              cursor={{ fill: 'transparent' }}
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload;
+                  const formattedValue = Number.isInteger(data.rating)
+                    ? data.rating
+                    : data.rating.toFixed(1);
+                  return (
+                    <div className="rounded-lg border bg-popover px-2 py-1 text-xs text-popover-foreground shadow-sm">
+                      <span className="font-medium">{formattedValue}:</span>{' '}
+                      {data.count} logs
+                    </div>
+                  );
+                }
+                return null;
+              }}
+            />
             <XAxis
               dataKey="rating"
               axisLine={false}
               tickLine={false}
-              tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
-              tickFormatter={(value) => value.toFixed(1)}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+              tickFormatter={(value) =>
+                Number.isInteger(value) ? value : value.toFixed(1)
+              }
               interval={0}
               height={15}
             />
@@ -68,20 +108,59 @@ export function RatingHistogram({ data, title }: RatingHistogramProps) {
               dataKey="count"
               radius={[2, 2, 0, 0]}
               barSize={24}
+              cursor="pointer"
+              onMouseEnter={(data: any) =>
+                setHoveredRating(data?.rating ?? null)
+              }
+              onClick={(data: any) => {
+                if (data?.rating !== undefined) {
+                  onRatingClick?.(data.rating);
+                }
+              }}
+              style={{ outline: 'none' }}
             >
-              {data.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={getBarColor(entry.rating)}
-                  opacity={entry.count > 0 ? 1 : 0.2}
-                />
-              ))}
+              {data.map((entry, index) => {
+                // Opacity logic:
+                // 1. If we are hovering something:
+                //    - If this is the hovered item -> 1
+                //    - If this is NOT the hovered item -> 0.2
+                // 2. If nothing is hovered:
+                //    - If this item has no count -> 0.2 (always dim empty)
+                //    - If a rating is selected locally and this is NOT it -> 0.3 (optional visual cue, prompt didn't strictly ask but good UX)
+                //    - Otherwise -> 1
+
+                let opacity = 1;
+
+                if (hoveredRating !== null) {
+                  // Hover state active
+                  opacity = entry.rating === hoveredRating ? 1 : 0.3;
+                } else if (
+                  selectedRating !== undefined &&
+                  selectedRating !== null
+                ) {
+                  // Filter state active (no hover)
+                  opacity = entry.rating === selectedRating ? 1 : 0.3;
+                } else {
+                  // Default state
+                  opacity = entry.count > 0 ? 1 : 0.3;
+                }
+
+                return (
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={getBarColor(entry.rating)}
+                    opacity={opacity}
+                    cursor="pointer"
+                    style={{ outline: 'none' }}
+                  />
+                );
+              })}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
     </div>
-  )
+  );
 }
 
 // Skeleton for loading
@@ -94,5 +173,5 @@ export function RatingHistogramSkeleton() {
       </div>
       <div className="h-14 bg-muted rounded animate-pulse" />
     </div>
-  )
+  );
 }

@@ -1,23 +1,25 @@
-import type { Metadata } from "next";
-import { Geist } from "next/font/google";
-import { ThemeProvider } from "next-themes";
-import { Toaster } from "@/components/ui/toaster";
-import "./globals.css";
+import type { Metadata } from 'next';
+import { Geist } from 'next/font/google';
+import { ThemeProvider } from 'next-themes';
+import { Toaster } from '@/components/ui/toaster';
+import { QueryProvider } from '@/components/providers/query-provider';
+import './globals.css';
 
 const defaultUrl = process.env.VERCEL_URL
   ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+  : 'http://localhost:3000';
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "Resutorant - Seu Diário Gastronômico",
-  description: "Registre suas experiências em restaurantes, cafés e bares. Avalie, organize e compartilhe suas descobertas gastronômicas.",
+  title: 'Resutorant - Seu Diário Gastronômico',
+  description:
+    'Registre suas experiências em restaurantes, cafés e bares. Avalie, organize e compartilhe suas descobertas gastronômicas.',
 };
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  display: "swap",
-  subsets: ["latin"],
+  variable: '--font-geist-sans',
+  display: 'swap',
+  subsets: ['latin'],
 });
 
 export default function RootLayout({
@@ -34,11 +36,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster position="top-center" richColors closeButton />
+          <QueryProvider>
+            {children}
+            <Toaster position="top-center" richColors closeButton />
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>
   );
 }
-
