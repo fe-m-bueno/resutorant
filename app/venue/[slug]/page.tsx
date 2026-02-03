@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
-import { getVenueBySlug, getVenueStats, getVenueReviews } from '@/lib/queries/venue-details';
+import { getVenueBySlug, getVenueStats, getVenueReviews, getUserPlanStatus } from '@/lib/queries/venue-details';
 import { getProfile } from '@/lib/queries';
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/server';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -11,6 +11,7 @@ import { MapPin, ChefHat, Star, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { AddLogModal } from '@/components/add-log-modal';
 import { AddLogButton } from './add-log-button'// Client component for interaction
+import { PlanButton } from './plan-button';
 
 const venueTypeLabels: Record<string, string> = {
   restaurante: 'Restaurante',
@@ -39,9 +40,10 @@ export default async function VenuePage({ params }: { params: { slug: string } }
     getVenueReviews(venue.id),
   ]);
 
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const currentUser = user ? await getProfile(user.id) : null;
+  const isPlanned = user ? await getUserPlanStatus(venue.id, user.id) : false;
 
   const location = venue.location as { city?: string; neighborhood?: string; address?: string };
   const locationText = [location?.address, location?.neighborhood, location?.city]
@@ -109,14 +111,26 @@ export default async function VenuePage({ params }: { params: { slug: string } }
               <div className="text-5xl font-bold">{stats.averageRating.toFixed(1)}</div>
               <div className="space-y-1">
                 <div className="flex text-yellow-500">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`h-5 w-5 ${
-                        i < Math.round(stats.averageRating) ? 'fill-current' : 'text-muted/30'
-                      }`}
-                    />
-                  ))}
+                  {Array.from({ length: 5 }).map((_, i) => {
+                    const rating = stats.averageRating;
+                    const filled = i < Math.floor(rating);
+                    const half = i === Math.floor(rating) && rating % 1 >= 0.5;
+                    
+                    return (
+                      <div key={i} className="relative">
+                        <Star
+                          className={`h-5 w-5 ${
+                            filled ? 'fill-yellow-500 text-yellow-500' : 'text-muted/30'
+                          }`}
+                        />
+                        {half && (
+                          <div className="absolute inset-0 overflow-hidden w-[50%]">
+                             <Star className="h-5 w-5 fill-yellow-500 text-yellow-500" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {stats.totalReviews} avaliações
@@ -149,7 +163,10 @@ export default async function VenuePage({ params }: { params: { slug: string } }
           <div className="md:col-span-2 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">Avaliações</h2>
-              <AddLogButton venue={venue} />
+              <div className="flex items-center gap-2">
+                <PlanButton venueId={venue.id} initialIsPlanned={isPlanned} userId={user?.id} />
+                <AddLogButton venue={venue} />
+              </div>
             </div>
 
             <div className="space-y-4">

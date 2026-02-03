@@ -137,26 +137,54 @@ export type Database = {
         };
         Relationships: [];
       };
-      list_venues: {
+      list_items: {
         Row: {
           added_at: string;
+          id: string;
           list_id: string;
           note: string | null;
-          venue_id: string;
+          venue_id: string | null;
+          review_id: string | null;
+          position: number;
         };
         Insert: {
           added_at?: string;
+          id?: string;
           list_id: string;
           note?: string | null;
-          venue_id: string;
+          venue_id?: string | null;
+          review_id?: string | null;
+          position?: number;
         };
         Update: {
           added_at?: string;
+          id?: string;
           list_id?: string;
           note?: string | null;
-          venue_id?: string;
+          venue_id?: string | null;
+          review_id?: string | null;
+          position?: number;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'list_items_list_id_fkey';
+            columns: ['list_id'];
+            referencedRelation: 'lists';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'list_items_venue_id_fkey';
+            columns: ['venue_id'];
+            referencedRelation: 'venues';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'list_items_review_id_fkey';
+            columns: ['review_id'];
+            referencedRelation: 'reviews';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       lists: {
         Row: {
@@ -169,6 +197,9 @@ export type Database = {
           name: string;
           updated_at: string;
           user_id: string;
+          show_places: boolean;
+          show_reviews: boolean;
+          is_ordered: boolean;
         };
         Insert: {
           created_at?: string;
@@ -180,6 +211,9 @@ export type Database = {
           name: string;
           updated_at?: string;
           user_id: string;
+          show_places?: boolean;
+          show_reviews?: boolean;
+          is_ordered?: boolean;
         };
         Update: {
           created_at?: string;
@@ -191,6 +225,9 @@ export type Database = {
           name?: string;
           updated_at?: string;
           user_id?: string;
+          show_places?: boolean;
+          show_reviews?: boolean;
+          is_ordered?: boolean;
         };
         Relationships: [];
       };
@@ -483,6 +520,12 @@ export type VenueWithCuisines = Venue & {
   avg_price?: number;
 };
 
-export type ListWithVenues = List & {
-  venues?: VenueWithCuisines[];
+export type ListItem = Database['public']['Tables']['list_items']['Row'];
+export type ListItemWithDetails = ListItem & {
+  venue: VenueWithCuisines | null;
+  review: ReviewWithVenue | null;
+};
+
+export type ListWithItems = List & {
+  items: ListItemWithDetails[];
 };

@@ -19,11 +19,16 @@ export async function togglePlanToGo(venueId: string) {
     .select("id")
     .eq("user_id", user.id)
     .eq("venue_id", venueId)
-    .single();
+    .limit(1)
+    .maybeSingle();
 
   if (existingPlan) {
-    // Remove plan
-    await supabase.from("user_venue_plans").delete().eq("id", existingPlan.id);
+    // Remove plan (delete all occurrences to clean up duplicates)
+    await supabase
+      .from("user_venue_plans")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("venue_id", venueId);
   } else {
     // Add plan
     await supabase.from("user_venue_plans").insert({

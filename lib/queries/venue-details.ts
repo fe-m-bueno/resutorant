@@ -81,3 +81,17 @@ export async function getVenueReviews(venueId: string): Promise<ReviewWithVenue[
     };
   }) as ReviewWithVenue[];
 }
+
+export async function getUserPlanStatus(venueId: string, userId: string): Promise<boolean> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('user_venue_plans')
+    .select('id')
+    .eq('venue_id', venueId)
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle();
+
+  if (error) return false;
+  return !!data;
+}

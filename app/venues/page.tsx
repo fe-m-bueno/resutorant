@@ -12,9 +12,10 @@ import { Separator } from '@/components/ui/separator';
 import { 
   searchVenuesWithFilters, 
   getCuisineTypes, 
-  getProfile 
+  getProfile,
+  getPlannedVenueIds
 } from '@/lib/queries';
-import { getPlannedVenues } from '@/lib/actions/plans'; // Server action
+// import { getPlannedVenues } from '@/lib/actions/plans'; // Server action (removed)
 import { createClient } from '@/lib/supabase/client';
 import type { Venue, CuisineType, Profile, ReviewWithVenue, VenueWithCuisines } from '@/lib/types';
 import { useSearchParams, useRouter, usePathname } from 'next/navigation';
@@ -54,22 +55,48 @@ export default function VenuesPage() {
   }, [searchQuery, typeFilter, locationFilter, cuisineFilter]);
 
   const loadUserData = useCallback(async () => {
-    const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      const [profile, cuisines, planned] = await Promise.all([
-        getProfile(user.id),
-        getCuisineTypes(user.id),
-        getPlannedVenues(user.id)
-      ]);
-      setCurrentUser(profile);
-      setAvailableCuisines(cuisines);
-      setPlannedVenueIds(planned);
-    } else {
-       // Load public cuisines if not logged in
-       const cuisines = await getCuisineTypes();
-       setAvailableCuisines(cuisines);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        // First fetch critical user profile data
+        try {
+          const profile = await getProfile(user.id);
+          setCurrentUser(profile);
+          
+          // Then try to fetch auxiliary data
+          const [cuisines, planned] = await Promise.all([
+            getCuisineTypes(user.id).catch(e => {
+              console.error('Error loading cuisines:', e);
+              return [];
+            }),
+            getPlannedVenueIds(user.id).catch(e => {
+              console.error('Error loading planned venues:', e);
+              return [];
+            })
+          ]);
+          
+          setAvailableCuisines(cuisines);
+          setPlannedVenueIds(planned);
+        } catch (innerError) {
+          console.error('Error loading user details:', innerError);
+          // Still try to ensure we have public data fallbacks if needed
+        }
+      } else {
+         // Load public cuisines if not logged in
+         const cuisines = await getCuisineTypes();
+         setAvailableCuisines(cuisines);
+      }
+    } catch (error) {
+      console.error('Error checking auth:', error);
+      // Fallback for completely failed auth check
+      try {
+        const cuisines = await getCuisineTypes();
+        setAvailableCuisines(cuisines);
+      } catch (fallbackError) {
+        console.error('Critical failure loading initial data:', fallbackError);
+      }
     }
   }, []);
 

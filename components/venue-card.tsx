@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { MapPin, ChefHat, Edit2, Trash2, Plus, Bookmark, BookmarkCheck } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -52,6 +52,10 @@ export function VenueCard({
   const [isAddLogOpen, setIsAddLogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isPlanned, setIsPlanned] = useState(initialIsPlanned);
+
+  useEffect(() => {
+    setIsPlanned(initialIsPlanned);
+  }, [initialIsPlanned]);
 
   const location = venue.location as { city?: string; neighborhood?: string };
   const locationText = [location?.neighborhood, location?.city]

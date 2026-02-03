@@ -1,7 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, List as ListIcon, Globe, Lock, MoreHorizontal, Trash2 } from "lucide-react"
+import { Plus, ArrowLeft, 
+  MapPin, 
+  MessageSquare, 
+  MoreHorizontal, 
+  Share2, 
+  Lock, 
+  Globe, 
+  GripVertical,
+  Trash2,
+  List as ListIcon
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,10 +32,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { BottomNav } from "@/components/bottom-nav"
 import { AddLogModal } from "@/components/add-log-modal"
-import { getUserLists, createList, getListWithVenues, deleteList } from "@/lib/queries"
+import { getUserLists, createList, getListDetails, createCuisine, deleteLog, addListItem } from '@/lib/queries';
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import type { List, Profile } from "@/lib/types"
+import type { Tag, CuisineType, Venue, ReviewWithVenue, VenueWithCuisines, List, Profile } from '@/lib/types';
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { listSchema, type ListFormData } from "@/lib/schemas"
@@ -183,12 +193,12 @@ export default function ListsPage() {
       
       // Fetch venue counts for each list
       const counts: Record<string, number> = {}
-      await Promise.all(
-        listsData.map(async (list) => {
-          const listWithVenues = await getListWithVenues(list.id)
-          counts[list.id] = listWithVenues?.venues?.length ?? 0
-        })
-      )
+        await Promise.all(
+          listsData.map(async (list) => {
+            const listDetails = await getListDetails(list.id)
+            counts[list.id] = listDetails?.items?.length ?? 0
+          })
+        )
       setVenueCounts(counts)
     } catch (error) {
       console.error("Error loading lists:", error)
@@ -235,13 +245,14 @@ export default function ListsPage() {
               ))
             ) : lists.length > 0 ? (
               lists.map((list) => (
+                <a href={`/list/${list.id}`} key={list.id} className="block group transition-transform active:scale-[0.98]">
                   <ListCard
-                    key={list.id}
                     list={list}
                     venueCount={venueCounts[list.id] ?? 0}
                     currentUserProfile={currentUserProfile}
                     onRefresh={loadData}
                   />
+                </a>
               ))
             ) : (
               <div className="text-center py-16 px-4">

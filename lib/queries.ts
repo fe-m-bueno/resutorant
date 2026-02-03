@@ -8,7 +8,7 @@ import type {
   List,
   ReviewWithVenue,
   VenueWithCuisines,
-  ListWithVenues,
+  ListWithItems,
 } from '@/lib/types';
 import type { CreateLogFormData, ProfileFormData } from '@/lib/schemas';
 
@@ -76,8 +76,24 @@ export async function updateProfile(
 // VENUES
 // ============================================================================
 
-export async function searchVenues(query: string): Promise<Venue[]> {
+export async function searchVenues(
+  query: string,
+  page = 1,
+  limit = 20,
+): Promise<Venue[]> {
   const supabase = createClient();
+  const offset = (page - 1) * limit;
+
+  if (!query?.trim()) {
+    const { data, error } = await supabase
+      .from('venues')
+      .select('*')
+      .range(offset, offset + limit - 1)
+      .order('name');
+    
+    if (error) throw error;
+    return data ?? [];
+  }
   
   const matchingTypes = VENUE_TYPES.filter(type => 
     type.toLowerCase().includes(query.toLowerCase())
@@ -92,7 +108,7 @@ export async function searchVenues(query: string): Promise<Venue[]> {
     .from('venues')
     .select('*')
     .or(orCondition)
-    .limit(10);
+    .range(offset, offset + limit - 1);
 
   if (error) throw error;
   return data ?? [];
@@ -596,11 +612,10 @@ export async function getUserListsWithCounts(
 
   if (!lists?.length) return [];
 
-  // Fetch venue counts for these lists
   const listsWithCounts = await Promise.all(
     lists.map(async (list) => {
       const { count } = await supabase
-        .from('list_venues')
+        .from('list_items')
         .select('*', { count: 'exact', head: true })
         .eq('list_id', list.id);
 
@@ -615,65 +630,123 @@ export async function getUserListsWithCounts(
   return listsWithCounts;
 }
 
-export async function getListWithVenues(
+export async function getListDetails(
   listId: string,
-): Promise<ListWithVenues | null> {
+): Promise<ListWithItems | null> {
   const supabase = createClient();
 
-  const { data: list, error: listError } = await supabase
+  const { data: list, error } = await supabase
     .from('lists')
-    .select('*')
+    .select(`
+      *,
+      items:list_items(
+        *,
+        venue:venues(*, cuisines:venue_cuisines(cuisine:cuisine_types(*))),
+        review:reviews(
+          *, 
+          venue:venues(*),
+          tags:review_tags(tag:tags(*)),
+          likes(user_id, user:profiles(username)),
+          comments(count),
+          author:profiles(*)
+        )
+      ),
+      author:profiles(*)
+    `)
     .eq('id', listId)
     .single();
 
-  if (listError) throw listError;
+  if (error) throw error;
   if (!list) return null;
 
-  const { data: venueLinks } = await supabase
-    .from('list_venues')
-    .select('venue_id')
-    .eq('list_id', listId);
+  const items = (list.items || [])
+    .sort((a: any, b: any) => {
+      if (list.is_ordered) return (a.position || 0) - (b.position || 0);
+      return new Date(b.added_at).getTime() - new Date(a.added_at).getTime();
+    })
+    .map((item: any) => ({
+      ...item,
+      venue: item.venue ? {
+         ...item.venue,
+         cuisines: item.venue.cuisines?.map((c: any) => c.cuisine).filter(Boolean) || []
+      } : null,
+      review: item.review ? {
+        ...item.review,
+         tags: item.review.tags?.map((t: any) => t.tag).filter(Boolean) || [],
+         _count: { comments: item.review.comments?.[0]?.count || 0 },
+      } : null
+    }));
 
-  if (venueLinks?.length) {
-    const { data: venues } = await supabase
-      .from('venues')
-      .select('*')
-      .in(
-        'id',
-        venueLinks.map((l) => l.venue_id),
-      );
-
-    return { ...list, venues: venues ?? [] };
-  }
-
-  return list;
+  return { ...list, items } as ListWithItems;
 }
 
-export async function addVenueToList(
+export async function addListItem(
   listId: string,
-  venueId: string,
+  type: 'venue' | 'review',
+  itemId: string,
   note?: string,
 ): Promise<void> {
   const supabase = createClient();
 
   const { error } = await supabase
-    .from('list_venues')
-    .insert({ list_id: listId, venue_id: venueId, note });
+    .from('list_items')
+    .insert({
+      list_id: listId,
+      venue_id: type === 'venue' ? itemId : null,
+      review_id: type === 'review' ? itemId : null,
+      note,
+    });
 
   if (error) throw error;
 }
 
-export async function removeVenueFromList(
-  listId: string,
-  venueId: string,
-): Promise<void> {
+export async function removeListItem(itemId: string): Promise<void> {
   const supabase = createClient();
 
   const { error } = await supabase
-    .from('list_venues')
+    .from('list_items')
     .delete()
-    .eq('list_id', listId)
-    .eq('venue_id', venueId);
+    .eq('id', itemId);
+
+  if (error) throw error;
+}
+
+export async function reorderListItems(
+  items: { 
+    id: string; 
+    list_id: string; 
+    position: number;
+    venue_id?: string | null;
+    review_id?: string | null; 
+  }[]
+): Promise<void> {
+  const supabase = createClient();
+  
+  const { error } = await supabase
+    .from('list_items')
+    .upsert(
+      items.map(({ id, list_id, position, venue_id, review_id }) => ({ 
+        id, 
+        list_id, 
+        position,
+        venue_id,
+        review_id
+      })),
+      { onConflict: 'id' }
+    );
+
+  if (error) throw error;
+}
+
+export async function updateListSettings(
+  listId: string,
+  settings: { show_places?: boolean; show_reviews?: boolean; is_ordered?: boolean }
+): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('lists')
+    .update(settings)
+    .eq('id', listId);
 
   if (error) throw error;
 }
@@ -684,6 +757,9 @@ export async function createList(data: {
   description?: string;
   icon?: string;
   is_public: boolean;
+  show_places?: boolean;
+  show_reviews?: boolean;
+  is_ordered?: boolean;
 }): Promise<List> {
   const supabase = createClient();
 
@@ -700,9 +776,12 @@ export async function updateList(
   id: string,
   data: {
     name?: string;
-    description?: string;
-    icon?: string;
+    description?: string | null;
+    icon?: string | null;
     is_public?: boolean;
+    show_places?: boolean;
+    show_reviews?: boolean;
+    is_ordered?: boolean;
   },
 ): Promise<List> {
   const supabase = createClient();
@@ -786,7 +865,7 @@ export async function searchLists(query: string): Promise<
   const listsWithCounts = await Promise.all(
     lists.map(async (list) => {
       const { count } = await supabase
-        .from('list_venues')
+        .from('list_items')
         .select('*', { count: 'exact', head: true })
         .eq('list_id', list.id);
         
@@ -803,9 +882,43 @@ export async function searchLists(query: string): Promise<
 
 export async function searchReviews(
   query: string,
+  page = 1,
   limit = 20,
 ): Promise<ReviewWithVenue[]> {
   const supabase = createClient();
+  const offset = (page - 1) * limit;
+
+  if (!query?.trim()) {
+      const { data: reviews, error } = await supabase
+      .from('reviews')
+      .select(
+        '*, venue:venues(*), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
+      )
+      .order('visited_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+
+    // Fetch tags for each review
+    const reviewsWithTags = await Promise.all(
+      (reviews ?? []).map(async (review) => {
+        const { data: tagLinks } = await supabase
+          .from('review_tags')
+          .select('tag:tags(*)')
+          .eq('review_id', review.id);
+
+        const tags = tagLinks?.map((l: any) => l.tag).filter(Boolean) || [];
+
+        return {
+          ...review,
+          tags,
+          _count: { comments: (review as any).comments?.[0]?.count || 0 },
+          author: (review as any).author,
+        };
+      }),
+    );
+    return reviewsWithTags as ReviewWithVenue[];
+  }
 
   // 1. Search for venues matching the query (by name or type)
   const matchingTypes = VENUE_TYPES.filter(type => 
@@ -859,7 +972,7 @@ export async function searchReviews(
     )
     .or(orConditions.join(','))
     .order('visited_at', { ascending: false })
-    .limit(limit);
+    .range(offset, offset + limit - 1);
 
   if (error) throw error;
 
@@ -1028,7 +1141,7 @@ export async function deleteAccount(userId: string): Promise<void> {
     .eq('user_id', userId);
   if (lists?.length) {
     await supabase
-      .from('list_venues')
+      .from('list_items')
       .delete()
       .in(
         'list_id',
@@ -1167,4 +1280,15 @@ export async function getPlannedVenuesForUser(
       cuisines,
     };
   }) as VenueWithCuisines[];
+}
+
+export async function getPlannedVenueIds(userId: string): Promise<string[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('user_venue_plans')
+    .select('venue_id')
+    .eq('user_id', userId);
+
+  if (error) throw error;
+  return data?.map((plan) => plan.venue_id) || [];
 }
