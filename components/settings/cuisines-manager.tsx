@@ -38,6 +38,7 @@ import type { CuisineType } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { EmojiPicker } from '@/components/ui/emoji-picker';
 import { Twemoji } from '@/components/ui/twemoji';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Inline schema since it's simple and specific to this form
 const cuisineFormSchema = z.object({
@@ -135,8 +136,23 @@ export function CuisinesManager() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="space-y-4 rounded-lg border p-4">
+            <Skeleton className="h-8 w-40 mb-4" />
+            <div className="flex gap-4">
+                <Skeleton className="h-10 flex-1" />
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-10" />
+            </div>
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-8 w-40" />
+            <div className="grid gap-2">
+                {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                ))}
+            </div>
+        </div>
       </div>
     );
   }

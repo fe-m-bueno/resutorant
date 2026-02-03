@@ -4,7 +4,8 @@
 
 @layer base {
   html {
-    scrollbar-gutter: stable;
+    overflow-x: hidden;
+    @apply scroll-smooth;
   }
   :root {
     /* Modern, clean light palette */
@@ -105,12 +106,11 @@
     @apply border-border;
   }
 
-  html {
-    @apply scroll-smooth;
-  }
 
   body {
     @apply bg-background text-foreground antialiased;
+    min-height: 100vh;
+    overflow-x: hidden;
     font-feature-settings:
       'rlig' 1,
       'calt' 1;

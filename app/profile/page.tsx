@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Settings, Edit2 } from 'lucide-react';
+import { Settings, Edit2, Globe } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -21,7 +22,7 @@ import {
 import { BottomNav } from '@/components/bottom-nav';
 import { AddLogModal } from '@/components/add-log-modal';
 import { createClient } from '@/lib/supabase/client';
-import { FilterBar, type FilterState } from '@/components/profile/filter-bar';
+import { FilterBar, FilterBarSkeleton, type FilterState } from '@/components/profile/filter-bar';
 import type { ReviewWithVenue } from '@/lib/types';
 import { useProfileData } from '@/hooks/use-profile-data';
 import { useQueryClient } from '@tanstack/react-query';
@@ -204,9 +205,9 @@ export default function ProfilePage() {
       <main className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6">
         {/* Profile Info */}
         <section className="flex items-start gap-3 sm:gap-5">
-          <Avatar className="h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-primary/20 shrink-0">
+          <Avatar className="h-24 w-24 sm:h-[120px] sm:w-[120px] ring-2 ring-primary/20 shrink-0">
             {isLoading ? (
-              <AvatarFallback className="animate-pulse" />
+              <Skeleton className="h-full w-full rounded-full" />
             ) : (
               <>
                 <AvatarImage src={profile?.avatar_url ?? undefined} />
@@ -216,11 +217,11 @@ export default function ProfilePage() {
               </>
             )}
           </Avatar>
-          <div className="flex-1 min-w-0 flex flex-col justify-center min-h-[4rem] sm:h-20">
+          <div className="flex-1 min-w-0 flex flex-col justify-center min-h-[4rem] sm:min-h-[120px]">
             {isLoading ? (
               <div className="space-y-2">
-                <div className="h-6 w-32 bg-muted rounded animate-pulse" />
-                <div className="h-4 w-48 bg-muted rounded animate-pulse" />
+                <Skeleton className="h-6 w-32 rounded" />
+                <Skeleton className="h-4 w-48 rounded" />
               </div>
             ) : (
               <div className="flex flex-col gap-1">
@@ -245,6 +246,20 @@ export default function ProfilePage() {
                     {profile.bio}
                   </p>
                 )}
+                
+                {profile?.website && (
+                  <a
+                    href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                  >
+                    <Globe className="h-3 w-3" />
+                    <span className="truncate max-w-[200px]">
+                      {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                    </span>
+                  </a>
+                )}
 
                 <div className="flex items-center gap-4 text-sm mt-1">
                   <div className="flex items-center gap-1.5">
@@ -265,8 +280,10 @@ export default function ProfilePage() {
           </div>
         </section>
 
-        {!isLoading && (
-          <div className="mt-4 mb-2 sm:mt-6 sm:mb-8">
+        <div className="mt-4 mb-2 sm:mt-6 sm:mb-8">
+          {isLoading ? (
+            <FilterBarSkeleton />
+          ) : (
             <FilterBar
               onSearchChange={setSearchQuery}
               onFilterChange={setFilters}
@@ -275,8 +292,8 @@ export default function ProfilePage() {
               availableCities={availableCities}
               availableTypes={availableTypes}
             />
-          </div>
-        )}
+          )}
+        </div>
 
         {!isLoading && (
           <Button

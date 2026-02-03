@@ -12,12 +12,17 @@ import {
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import {
+  differenceInMinutes,
+  differenceInHours,
+} from 'date-fns';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { RatingDisplay } from '@/components/rating-input';
 import { CommentSection } from '@/components/comments/comment-section';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { ReviewWithVenue, Profile } from '@/lib/types';
 
 interface ReviewCardProps {
@@ -29,6 +34,21 @@ interface ReviewCardProps {
   onLike?: () => void;
   currentUserProfile?: Profile;
 }
+
+const formatRelativeDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMin = differenceInMinutes(now, date);
+  const diffHours = differenceInHours(now, date);
+
+  if (diffMin < 60) {
+    return `há ${diffMin} minutos`;
+  } else if (diffHours < 24) {
+    return `${diffHours}h`;
+  } else {
+    return format(date, 'dd/MM/yyyy');
+  }
+};
 
 export const ReviewCard = memo(function ReviewCard({
   review,
@@ -70,25 +90,37 @@ export const ReviewCard = memo(function ReviewCard({
 
   const isOwner = currentUserId === review.user_id;
 
+  const author = profile || review.author;
+
   return (
-    <Card className="overflow-hidden border-border/50 hover:shadow-md hover:border-border transition-colors">
-      <CardContent className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            {showProfile && profile && (
-              <div className="flex items-center gap-2 mb-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={profile.avatar_url ?? undefined} />
-                  <AvatarFallback className="text-xs bg-secondary">
-                    {profile.username?.charAt(0).toUpperCase() ?? '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="text-sm font-medium truncate">
-                  {profile.username}
-                </span>
-              </div>
-            )}
+    <div className="flex flex-col gap-2">
+      {/* External Header */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          {author && (
+            <>
+              <Avatar className="h-6 w-6">
+                <AvatarImage src={author.avatar_url ?? undefined} />
+                <AvatarFallback className="text-[10px] bg-secondary">
+                  {author.username?.charAt(0).toUpperCase() ?? '?'}
+                </AvatarFallback>
+              </Avatar>
+              <span className="text-sm font-medium text-foreground/90">
+                @{author.username}
+              </span>
+            </>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground font-medium">
+          {formatRelativeDate(review.created_at)}
+        </span>
+      </div>
+
+      <Card className="overflow-hidden border-border/50 hover:shadow-md hover:border-border transition-colors">
+        <CardContent className="p-4">
+          {/* Header */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-base leading-tight truncate flex flex-row gap-4">
               {review.venue.name}
               {review.is_private && (
@@ -275,31 +307,52 @@ export const ReviewCard = memo(function ReviewCard({
           </div>
         )}
       </CardContent>
-    </Card>
+      </Card>
+    </div>
   );
 });
 
 // Skeleton version for loading states
 export function ReviewCardSkeleton() {
   return (
-    <Card className="overflow-hidden border-border/50">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 space-y-2">
-            <div className="h-5 w-3/4 bg-muted rounded-md animate-pulse" />
-            <div className="h-4 w-1/2 bg-muted rounded-md animate-pulse" />
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-6 w-6 rounded-full" />
+          <Skeleton className="h-4 w-24" />
+        </div>
+        <Skeleton className="h-3 w-16" />
+      </div>
+      <Card className="overflow-hidden border-border/50">
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-3/4" />
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-16" />
+                <Skeleton className="h-5 w-20" />
+              </div>
+            </div>
+            <Skeleton className="h-7 w-12 rounded-lg" />
           </div>
-          <div className="h-7 w-10 bg-muted rounded-md animate-pulse" />
-        </div>
-        <div className="mt-3 space-y-2">
-          <div className="h-4 w-full bg-muted rounded-md animate-pulse" />
-          <div className="h-4 w-3/4 bg-muted rounded-md animate-pulse" />
-        </div>
-        <div className="flex gap-2 mt-3">
-          <div className="h-5 w-14 bg-muted rounded-full animate-pulse" />
-          <div className="h-5 w-18 bg-muted rounded-full animate-pulse" />
-        </div>
-      </CardContent>
-    </Card>
+          <div className="mt-4 space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+          <div className="flex gap-1.5 mt-4">
+            <Skeleton className="h-5 w-16 rounded-md" />
+            <Skeleton className="h-5 w-20 rounded-md" />
+            <Skeleton className="h-5 w-14 rounded-md" />
+          </div>
+          <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
+            <Skeleton className="h-3 w-24" />
+            <div className="flex gap-2">
+              <Skeleton className="h-6 w-10 rounded-md" />
+              <Skeleton className="h-6 w-10 rounded-md" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

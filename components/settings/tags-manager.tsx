@@ -28,6 +28,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { ColorPicker } from '@/components/ui/color-picker';
+import { Skeleton } from '@/components/ui/skeleton';
 
 import {
   createTag,
@@ -127,8 +128,24 @@ export function TagsManager() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <div className="space-y-6">
+        <div className="space-y-4 rounded-lg border p-4">
+            <Skeleton className="h-8 w-32 mb-4" />
+            <div className="flex gap-4">
+                <Skeleton className="h-12 flex-1" />
+                <Skeleton className="h-12 w-24" />
+                <Skeleton className="h-12 w-12" />
+            </div>
+            <Skeleton className="h-32 w-full rounded-xl" />
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-8 w-40" />
+            <div className="grid gap-2">
+                {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-14 w-full rounded-lg" />
+                ))}
+            </div>
+        </div>
       </div>
     );
   }

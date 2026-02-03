@@ -10,6 +10,7 @@ import {
   Tooltip,
   Rectangle,
 } from 'recharts';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface RatingHistogramProps {
   data: { rating: number; count: number }[];
@@ -153,10 +154,13 @@ export function RatingHistogramSkeleton() {
   return (
     <div className="w-full space-y-4">
       <div className="flex items-center justify-between gap-4">
-        <div className="h-4 w-32 bg-muted rounded animate-pulse" />
-        <div className="h-6 w-24 bg-muted rounded animate-pulse" />
+        <Skeleton className="h-4 w-32" />
+        <div className="flex items-end gap-2">
+          <Skeleton className="h-6 w-8" />
+          <Skeleton className="h-4 w-12" />
+        </div>
       </div>
-      <div className="h-14 bg-muted rounded animate-pulse" />
+      <Skeleton className="h-14 w-full rounded-md" />
     </div>
   );
 }

@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Lazy load AddLogModal - only loaded when needed
 const AddLogModal = dynamic(
@@ -166,7 +167,7 @@ export default function DashboardPage() {
           >
             <LogOut className="h-4 w-4" />
           </Button>
-          <DropdownMenu>
+          <DropdownMenu modal={false}>
             <DropdownMenuTrigger asChild>
               <Avatar className="h-9 w-9 cursor-pointer">
                 <AvatarImage src={profile?.avatar_url ?? undefined} />
@@ -214,7 +215,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeSwitcher />
-            <DropdownMenu>
+            <DropdownMenu modal={false}>
               <DropdownMenuTrigger asChild>
                 <Avatar className="h-8 w-8 cursor-pointer">
                   <AvatarImage src={profile?.avatar_url ?? undefined} />
@@ -258,7 +259,7 @@ export default function DashboardPage() {
           {/* Greeting */}
           <section className="mb-8 animate-enter">
             {isLoading ? (
-              <div className="h-9 w-64 bg-muted rounded-lg animate-pulse" />
+              <Skeleton className="h-9 w-64 rounded-lg" />
             ) : (
               <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
                 {greeting}, {profile?.username ?? 'Chef'}! 👋

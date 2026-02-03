@@ -30,6 +30,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogPortal,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
@@ -40,6 +41,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { SlidersHorizontal } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface FilterBarProps {
   onSearchChange: (value: string) => void;
@@ -247,8 +249,14 @@ export function FilterBar({
           {/* Mobile Filter Dialog (Controlled) */}
           <Dialog
             open={isMobileFiltersOpen}
+            modal={false}
             onOpenChange={setIsMobileFiltersOpen}
           >
+            <DialogPortal>
+              {isMobileFiltersOpen && (
+                <div className="fixed inset-0 z-[50] bg-black/60 backdrop-blur-sm animate-in fade-in-0 duration-300 pointer-events-none" />
+              )}
+            </DialogPortal>
             <DialogContent className="sm:hidden fixed inset-0 !translate-x-0 !translate-y-0 w-full h-full max-w-none rounded-none border-none bg-background p-6 overflow-y-auto z-[9999] duration-300 data-[state=open]:slide-in-from-bottom data-[state=closed]:slide-out-to-bottom [&>button]:hidden">
               <DialogHeader className="mb-8">
                 <DialogTitle className="text-left flex items-center justify-between">
@@ -1017,6 +1025,24 @@ export function FilterBar({
             </Popover>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function FilterBarSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 items-center h-11">
+        <Skeleton className="h-10 sm:h-11 flex-1 rounded-xl" />
+        <Skeleton className="h-10 w-10 sm:hidden rounded-xl" />
+        <div className="w-10 shrink-0 hidden sm:flex" />
+      </div>
+      <div className="hidden sm:flex gap-2 overflow-x-auto pb-4 items-center h-12">
+        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-28 rounded-md" />
+        <Skeleton className="h-8 w-28 rounded-md" />
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { EmojiPicker } from '@/components/ui/emoji-picker';
 
 interface SidebarProps {
   currentSection: string;
@@ -44,7 +45,12 @@ export function SettingsSidebar({
             'justify-start whitespace-nowrap',
             currentSection === item.id && 'bg-muted',
           )}
-          onClick={() => onSectionChange(item.id)}
+          onClick={() => {
+            onSectionChange(item.id);
+            if (item.id === 'cuisines') {
+              EmojiPicker.prefetch();
+            }
+          }}
         >
           <item.icon className="mr-2 h-4 w-4" />
           {item.label}

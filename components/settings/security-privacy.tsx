@@ -15,11 +15,13 @@ import {
 } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Shield, Lock, Mail, Users } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { Profile } from '@/lib/types';
 
 export function SecurityPrivacy() {
   const supabase = createClient();
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -27,21 +29,35 @@ export function SecurityPrivacy() {
 
   useEffect(() => {
     async function loadProfile() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setEmail(user.email ?? '');
-        const { data } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        setProfile(data);
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (user) {
+          setEmail(user.email ?? '');
+          const { data } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          setProfile(data);
+        }
+      } finally {
+        setInitialLoading(false);
       }
     }
     loadProfile();
   }, [supabase]);
+
+  if (initialLoading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-[200px] w-full rounded-xl" />
+        <Skeleton className="h-[250px] w-full rounded-xl" />
+        <Skeleton className="h-[250px] w-full rounded-xl" />
+      </div>
+    )
+  }
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();

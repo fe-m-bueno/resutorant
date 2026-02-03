@@ -12,6 +12,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
+  DialogPortal,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -299,11 +300,17 @@ export function AddLogModal({
   return (
     <Dialog
       open={open}
+      modal={false}
       onOpenChange={(val) => {
         if (!val) handleReset();
         onOpenChange(val);
       }}
     >
+      <DialogPortal>
+        {open && (
+          <div className="fixed inset-0 z-[50] bg-black/60 backdrop-blur-sm animate-in fade-in-0 duration-300 pointer-events-none" />
+        )}
+      </DialogPortal>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-xl">

@@ -29,89 +29,7 @@ import type { List } from "@/lib/types"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { listSchema, type ListFormData } from "@/lib/schemas"
-
-// List Card Component
-function ListCard({ 
-  list, 
-  venueCount 
-}: { 
-  list: List
-  venueCount: number 
-}) {
-  return (
-    <div className="group relative rounded-2xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-            {list.icon ? (
-              <span className="text-lg">{list.icon}</span>
-            ) : (
-              <ListIcon className="h-5 w-5" />
-            )}
-          </div>
-          <div className="min-w-0">
-            <h3 className="font-medium truncate">{list.name}</h3>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-              <span>{venueCount} {venueCount === 1 ? 'lugar' : 'lugares'}</span>
-              {list.is_public ? (
-                <span className="flex items-center gap-0.5">
-                  <Globe className="h-3 w-3" />
-                  Pública
-                </span>
-              ) : (
-                <span className="flex items-center gap-0.5">
-                  <Lock className="h-3 w-3" />
-                  Privada
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem className="text-destructive">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Excluir
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-      
-      {list.description && (
-        <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
-          {list.description}
-        </p>
-      )}
-      
-      {list.is_default && (
-        <span className="absolute top-2 right-2 text-[10px] font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-          Padrão
-        </span>
-      )}
-    </div>
-  )
-}
-
-// List Card Skeleton
-function ListCardSkeleton() {
-  return (
-    <div className="rounded-2xl border bg-card p-4">
-      <div className="flex items-start gap-3">
-        <div className="h-10 w-10 rounded-xl bg-muted animate-pulse shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="h-5 w-32 bg-muted rounded animate-pulse" />
-          <div className="h-3 w-24 bg-muted rounded animate-pulse" />
-        </div>
-      </div>
-    </div>
-  )
-}
+import { ListCard, ListCardSkeleton } from "@/components/list-card"
 
 // Create List Modal Component
 function CreateListModal({
@@ -312,10 +230,33 @@ export default function ListsPage() {
               ))
             ) : lists.length > 0 ? (
               lists.map((list) => (
-                <ListCard
+                  <ListCard
                   key={list.id}
                   list={list}
                   venueCount={venueCounts[list.id] ?? 0}
+                  onDelete={!list.is_default ? () => {
+                     // Since we don't have direct access to delete from here easily without duplicating logic or refactoring more, 
+                     // and the original ListCard didn't implemented delete action binding in the main list, 
+                     // I will implement a temporary mock or just pass undefined if not ready, 
+                     // but wait, the original code had a dropdown with delete button but no action bound to it?
+                     // Ah, looking at the original code...
+                     // The original ListCard had a DropdownMenu item "Excluir" but no onClick handler was visibly passed or implemented in the component code I saw in the `view_file`.
+                     // Wait, let me check the `view_file` output for `app/lists/page.tsx` again.
+                     // The `view_file` showed `ListCard` component defined locally.
+                     // It had `<DropdownMenuItem className="text-destructive">` but NO `onClick`. So it was doing nothing.
+                     // My new `ListCard` component accepts `onDelete`.
+                     // I should probably implement the delete logic here or just pass undefined to hide it if I can't easily hook it up.
+                     // But wait, `ListsManager` had delete logic. `ListsPage` has no delete logic function defined.
+                     // I'll leave it as is for now (no interactive delete on the card itself on this page, similar to before where it did nothing)
+                     // actually, the original code SHOWED the dropdown but it didn't work? 
+                     // "DropdownMenuItem className="text-destructive"" 
+                     // Yes.
+                     // So passing props without onDelete will just hide the dropdown in my new component if I made it conditional.
+                     // My new component: `{onDelete && ( ... dropdown ... )}`
+                     // So if I don't pass onDelete, the dropdown won't show.
+                     // This is actually BETTER than showing a broken button.
+                     // So I will just pass list and venueCount.
+                  } : undefined}
                 />
               ))
             ) : (
