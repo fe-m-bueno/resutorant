@@ -1,18 +1,18 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import dynamic from "next/dynamic";
-import { ChefHat, Settings, LogOut, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ReviewCard, ReviewCardSkeleton } from "@/components/review-card";
-import { BottomNav } from "@/components/bottom-nav";
-import { ThemeSwitcher } from "@/components/theme-switcher";
-import { getProfile, getRecentReviews } from "@/lib/queries";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import type { Profile, ReviewWithVenue } from "@/lib/types";
-import Link from "next/link";
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import { ChefHat, Settings, LogOut, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ReviewCard, ReviewCardSkeleton } from '@/components/review-card';
+import { BottomNav } from '@/components/bottom-nav';
+import { ThemeSwitcher } from '@/components/theme-switcher';
+import { getProfile, getRecentReviews } from '@/lib/queries';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+import type { Profile, ReviewWithVenue } from '@/lib/types';
+import Link from 'next/link';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,12 +20,12 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from '@/components/ui/dropdown-menu';
 
 // Lazy load AddLogModal - only loaded when needed
 const AddLogModal = dynamic(
   () =>
-    import("@/components/add-log-modal").then((m) => ({
+    import('@/components/add-log-modal').then((m) => ({
       default: m.AddLogModal,
     })),
   { ssr: false },
@@ -36,7 +36,10 @@ export default function DashboardPage() {
   const [reviews, setReviews] = useState<ReviewWithVenue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [greeting, setGreeting] = useState("Olá");
+  const [editingLog, setEditingLog] = useState<ReviewWithVenue | undefined>(
+    undefined,
+  );
+  const [greeting, setGreeting] = useState('Olá');
   const router = useRouter();
 
   const loadData = useCallback(async () => {
@@ -56,7 +59,7 @@ export default function DashboardPage() {
       setProfile(profileData);
       setReviews(reviewsData);
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error('Error loading data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +68,7 @@ export default function DashboardPage() {
   const handleLogout = useCallback(async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push("/");
+    router.push('/');
   }, [router]);
 
   useEffect(() => {
@@ -73,9 +76,9 @@ export default function DashboardPage() {
 
     // Set greeting on client side to avoid hydration mismatch
     const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Bom dia");
-    else if (hour < 18) setGreeting("Boa tarde");
-    else setGreeting("Boa noite");
+    if (hour < 12) setGreeting('Bom dia');
+    else if (hour < 18) setGreeting('Boa tarde');
+    else setGreeting('Boa noite');
   }, [loadData]);
 
   // Memoize computed values to avoid recalculation on every render
@@ -87,11 +90,19 @@ export default function DashboardPage() {
         ? (
             filtered.reduce((acc, r) => acc + r.rating, 0) / filtered.length
           ).toFixed(1)
-        : "-";
+        : '-';
     return { userReviews: filtered, uniqueVenues: venues, averageRating: avg };
   }, [reviews, profile?.id]);
 
-  const handleOpenModal = useCallback(() => setIsModalOpen(true), []);
+  const handleOpenModal = useCallback(() => {
+    setEditingLog(undefined);
+    setIsModalOpen(true);
+  }, []);
+
+  const handleEditLog = useCallback((log: ReviewWithVenue) => {
+    setEditingLog(log);
+    setIsModalOpen(true);
+  }, []);
 
   return (
     <div className="min-h-screen bg-background">
@@ -120,7 +131,7 @@ export default function DashboardPage() {
               <Avatar className="h-9 w-9 cursor-pointer">
                 <AvatarImage src={profile?.avatar_url ?? undefined} />
                 <AvatarFallback className="text-sm bg-secondary">
-                  {profile?.username?.charAt(0).toUpperCase() ?? "?"}
+                  {profile?.username?.charAt(0).toUpperCase() ?? '?'}
                 </AvatarFallback>
               </Avatar>
             </DropdownMenuTrigger>
@@ -140,7 +151,10 @@ export default function DashboardPage() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+              <DropdownMenuItem
+                onClick={handleLogout}
+                className="cursor-pointer"
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Sair</span>
               </DropdownMenuItem>
@@ -165,7 +179,7 @@ export default function DashboardPage() {
                 <Avatar className="h-8 w-8 cursor-pointer">
                   <AvatarImage src={profile?.avatar_url ?? undefined} />
                   <AvatarFallback className="text-xs bg-secondary">
-                    {profile?.username?.charAt(0).toUpperCase() ?? "?"}
+                    {profile?.username?.charAt(0).toUpperCase() ?? '?'}
                   </AvatarFallback>
                 </Avatar>
               </DropdownMenuTrigger>
@@ -185,7 +199,10 @@ export default function DashboardPage() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="cursor-pointer"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sair</span>
                 </DropdownMenuItem>
@@ -204,7 +221,7 @@ export default function DashboardPage() {
               <div className="h-9 w-64 bg-muted rounded-lg animate-pulse" />
             ) : (
               <h1 className="text-2xl lg:text-3xl font-semibold tracking-tight">
-                {greeting}, {profile?.username ?? "Chef"}! 👋
+                {greeting}, {profile?.username ?? 'Chef'}! 👋
               </h1>
             )}
             <p className="text-muted-foreground mt-2 text-sm lg:text-base">
@@ -259,6 +276,8 @@ export default function DashboardPage() {
                     key={review.id}
                     review={review}
                     showProfile={review.user_id !== profile?.id}
+                    onEdit={handleEditLog}
+                    currentUserId={profile?.id}
                   />
                 ))
               ) : (
@@ -286,8 +305,12 @@ export default function DashboardPage() {
 
       <AddLogModal
         open={isModalOpen}
-        onOpenChange={setIsModalOpen}
+        onOpenChange={(val) => {
+          setIsModalOpen(val);
+          if (!val) setEditingLog(undefined);
+        }}
         onSuccess={loadData}
+        logToEdit={editingLog}
       />
     </div>
   );

@@ -1,23 +1,23 @@
-"use client"
+'use client';
 
-import { memo } from "react"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
-import { MapPin, Lock, Heart, MessageCircle } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { RatingDisplay } from "@/components/rating-input"
-import type { ReviewWithVenue, Profile } from "@/lib/types"
+import { memo } from 'react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { MapPin, Lock, Heart, MessageCircle, Edit2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { RatingDisplay } from '@/components/rating-input';
+import type { ReviewWithVenue, Profile } from '@/lib/types';
 
 interface ReviewCardProps {
-  review: ReviewWithVenue
-  profile?: Profile
-  showProfile?: boolean
-  likesCount?: number
-  isLiked?: boolean
-  onLike?: () => void
+  review: ReviewWithVenue;
+  profile?: Profile;
+  showProfile?: boolean;
+  likesCount?: number;
+  isLiked?: boolean;
+  onLike?: () => void;
 }
 
 export const ReviewCard = memo(function ReviewCard({
@@ -27,25 +27,35 @@ export const ReviewCard = memo(function ReviewCard({
   likesCount = 0,
   isLiked = false,
   onLike,
-}: ReviewCardProps) {
-  const location = review.venue.location as { city?: string; neighborhood?: string }
+  onEdit,
+  currentUserId,
+}: ReviewCardProps & {
+  onEdit?: (review: ReviewWithVenue) => void;
+  currentUserId?: string;
+}) {
+  const location = review.venue.location as {
+    city?: string;
+    neighborhood?: string;
+  };
   const locationText = [location?.neighborhood, location?.city]
     .filter(Boolean)
-    .join(", ")
+    .join(', ');
 
   const venueTypeLabels: Record<string, string> = {
-    restaurante: "Restaurante",
-    café: "Café",
-    bar: "Bar",
-    lanchonete: "Lanchonete",
-    delivery: "Delivery",
-    mercado: "Mercado",
-    bistrô: "Bistrô",
-    izakaya: "Izakaya",
-    rotisseria: "Rotisseria",
-    padaria: "Padaria",
-    pub: "Pub",
-  }
+    restaurante: 'Restaurante',
+    café: 'Café',
+    bar: 'Bar',
+    lanchonete: 'Lanchonete',
+    delivery: 'Delivery',
+    mercado: 'Mercado',
+    bistrô: 'Bistrô',
+    izakaya: 'Izakaya',
+    rotisseria: 'Rotisseria',
+    padaria: 'Padaria',
+    pub: 'Pub',
+  };
+
+  const isOwner = currentUserId === review.user_id;
 
   return (
     <Card className="overflow-hidden border-border/50 transition-all hover:shadow-md hover:border-border">
@@ -58,7 +68,7 @@ export const ReviewCard = memo(function ReviewCard({
                 <Avatar className="h-6 w-6">
                   <AvatarImage src={profile.avatar_url ?? undefined} />
                   <AvatarFallback className="text-xs bg-secondary">
-                    {profile.username?.charAt(0).toUpperCase() ?? "?"}
+                    {profile.username?.charAt(0).toUpperCase() ?? '?'}
                   </AvatarFallback>
                 </Avatar>
                 <span className="text-sm font-medium truncate">
@@ -124,25 +134,34 @@ export const ReviewCard = memo(function ReviewCard({
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
           <span className="text-xs text-muted-foreground">
             {review.visited_at
-              ? format(new Date(review.visited_at), "d MMM yyyy", {
-                  locale: ptBR,
-                })
-              : "Data não informada"}
+              ? format(
+                  new Date(review.visited_at + 'T00:00:00'),
+                  'd MMM yyyy',
+                  { locale: ptBR },
+                )
+              : 'Data não informada'}
           </span>
           <div className="flex items-center gap-2">
+            {isOwner && onEdit && (
+              <button
+                type="button"
+                onClick={() => onEdit(review)}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+              >
+                <Edit2 className="h-3.5 w-3.5" />
+              </button>
+            )}
             <button
               type="button"
               onClick={onLike}
               className={cn(
-                "flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors",
+                'flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors',
                 isLiked
-                  ? "text-red-500 bg-red-500/10"
-                  : "text-muted-foreground hover:bg-secondary"
+                  ? 'text-red-500 bg-red-500/10'
+                  : 'text-muted-foreground hover:bg-secondary',
               )}
             >
-              <Heart
-                className={cn("h-3.5 w-3.5", isLiked && "fill-current")}
-              />
+              <Heart className={cn('h-3.5 w-3.5', isLiked && 'fill-current')} />
               {likesCount > 0 && <span>{likesCount}</span>}
             </button>
             <button
@@ -155,8 +174,8 @@ export const ReviewCard = memo(function ReviewCard({
         </div>
       </CardContent>
     </Card>
-  )
-})
+  );
+});
 
 // Skeleton version for loading states
 export function ReviewCardSkeleton() {
@@ -180,5 +199,5 @@ export function ReviewCardSkeleton() {
         </div>
       </CardContent>
     </Card>
-  )
+  );
 }

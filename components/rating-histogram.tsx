@@ -7,8 +7,8 @@ import {
   XAxis,
   YAxis,
   ResponsiveContainer,
-  Cell,
   Tooltip,
+  Rectangle,
 } from 'recharts';
 
 interface RatingHistogramProps {
@@ -43,6 +43,16 @@ export function RatingHistogram({
     totalReviews > 0
       ? data.reduce((sum, d) => sum + d.rating * d.count, 0) / totalReviews
       : 0;
+
+  const getBarOpacity = (rating: number, count: number) => {
+    if (hoveredRating !== null) {
+      return rating === hoveredRating ? 1 : 0.3;
+    }
+    if (selectedRating !== undefined && selectedRating !== null) {
+      return rating === selectedRating ? 1 : 0.3;
+    }
+    return count > 0 ? 1 : 0.3;
+  };
 
   return (
     <div className="w-full space-y-4">
@@ -118,44 +128,19 @@ export function RatingHistogram({
                 }
               }}
               style={{ outline: 'none' }}
-            >
-              {data.map((entry, index) => {
-                // Opacity logic:
-                // 1. If we are hovering something:
-                //    - If this is the hovered item -> 1
-                //    - If this is NOT the hovered item -> 0.2
-                // 2. If nothing is hovered:
-                //    - If this item has no count -> 0.2 (always dim empty)
-                //    - If a rating is selected locally and this is NOT it -> 0.3 (optional visual cue, prompt didn't strictly ask but good UX)
-                //    - Otherwise -> 1
-
-                let opacity = 1;
-
-                if (hoveredRating !== null) {
-                  // Hover state active
-                  opacity = entry.rating === hoveredRating ? 1 : 0.3;
-                } else if (
-                  selectedRating !== undefined &&
-                  selectedRating !== null
-                ) {
-                  // Filter state active (no hover)
-                  opacity = entry.rating === selectedRating ? 1 : 0.3;
-                } else {
-                  // Default state
-                  opacity = entry.count > 0 ? 1 : 0.3;
-                }
-
+              shape={(props: any) => {
+                const { rating, count } = props.payload;
                 return (
-                  <Cell
-                    key={`cell-${index}`}
-                    fill={getBarColor(entry.rating)}
-                    opacity={opacity}
+                  <Rectangle
+                    {...props}
+                    fill={getBarColor(rating)}
+                    opacity={getBarOpacity(rating, count)}
                     cursor="pointer"
                     style={{ outline: 'none' }}
                   />
                 );
-              })}
-            </Bar>
+              }}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>

@@ -29,11 +29,19 @@ import { useQueryClient } from '@tanstack/react-query';
 export default function ProfilePage() {
   const { profile, reviews, isLoading } = useProfileData();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<ReviewWithVenue | undefined>(
+    undefined,
+  );
   const queryClient = useQueryClient();
 
   const handleSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['reviews'] });
     queryClient.invalidateQueries({ queryKey: ['profile'] });
+  };
+
+  const handleEditLog = (log: ReviewWithVenue) => {
+    setEditingLog(log);
+    setIsModalOpen(true);
   };
 
   // Filter Logic
@@ -348,7 +356,12 @@ export default function ProfilePage() {
               ) : sortedReviews.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {sortedReviews.map((review) => (
-                    <ReviewCard key={review.id} review={review} />
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      onEdit={handleEditLog}
+                      currentUserId={profile?.id}
+                    />
                   ))}
                 </div>
               ) : (
@@ -356,7 +369,10 @@ export default function ProfilePage() {
                   <p>Nenhum log ainda</p>
                   <Button
                     variant="link"
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => {
+                      setEditingLog(undefined);
+                      setIsModalOpen(true);
+                    }}
                     className="mt-2"
                   >
                     Registrar primeiro log
@@ -369,7 +385,12 @@ export default function ProfilePage() {
               {publicReviews.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {publicReviews.map((review) => (
-                    <ReviewCard key={review.id} review={review} />
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      onEdit={handleEditLog}
+                      currentUserId={profile?.id}
+                    />
                   ))}
                 </div>
               ) : (
@@ -383,7 +404,12 @@ export default function ProfilePage() {
               {privateReviews.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {privateReviews.map((review) => (
-                    <ReviewCard key={review.id} review={review} />
+                    <ReviewCard
+                      key={review.id}
+                      review={review}
+                      onEdit={handleEditLog}
+                      currentUserId={profile?.id}
+                    />
                   ))}
                 </div>
               ) : (
@@ -396,12 +422,21 @@ export default function ProfilePage() {
         </section>
       </main>
 
-      <BottomNav onAddClick={() => setIsModalOpen(true)} />
+      <BottomNav
+        onAddClick={() => {
+          setEditingLog(undefined);
+          setIsModalOpen(true);
+        }}
+      />
 
       <AddLogModal
         open={isModalOpen}
-        onOpenChange={setIsModalOpen}
+        onOpenChange={(val) => {
+          setIsModalOpen(val);
+          if (!val) setEditingLog(undefined);
+        }}
         onSuccess={handleSuccess}
+        logToEdit={editingLog}
       />
     </div>
   );

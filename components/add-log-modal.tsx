@@ -1,29 +1,29 @@
-"use client"
+'use client';
 
-import { useState, useEffect } from "react"
-import { useForm } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { format } from "date-fns"
-import { CalendarIcon, MapPin, Loader2, Eye, EyeOff } from "lucide-react"
-import { toast } from "sonner"
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { format } from 'date-fns';
+import { CalendarIcon, MapPin, Loader2, Eye, EyeOff } from 'lucide-react';
+import { toast } from 'sonner';
 
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
+} from '@/components/ui/select';
 import {
   Form,
   FormControl,
@@ -31,45 +31,62 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form"
-import { Separator } from "@/components/ui/separator"
-import { RatingInput } from "@/components/rating-input"
-import { TagSelector } from "@/components/tag-selector"
+} from '@/components/ui/form';
+import { Separator } from '@/components/ui/separator';
+import { RatingInput } from '@/components/rating-input';
+import { TagSelector } from '@/components/tag-selector';
 
-import { createLogSchema, type CreateLogFormData, VENUE_TYPES } from "@/lib/schemas"
-import { createLog, getTags, getCuisineTypes, searchVenues, createTag } from "@/lib/queries"
-import { createClient } from "@/lib/supabase/client"
-import type { Tag, CuisineType, Venue } from "@/lib/types"
+import {
+  createLogSchema,
+  type CreateLogFormData,
+  VENUE_TYPES,
+} from '@/lib/schemas';
+import {
+  createLog,
+  updateLog,
+  getTags,
+  getCuisineTypes,
+  searchVenues,
+  createTag,
+} from '@/lib/queries';
+import { createClient } from '@/lib/supabase/client';
+import type { Tag, CuisineType, Venue, ReviewWithVenue } from '@/lib/types';
 
 interface AddLogModalProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  onSuccess?: () => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+  logToEdit?: ReviewWithVenue;
 }
 
 const venueTypeLabels: Record<string, string> = {
-  restaurante: "Restaurante",
-  café: "Café",
-  bar: "Bar",
-  lanchonete: "Lanchonete",
-  delivery: "Delivery",
-  mercado: "Mercado",
-  bistrô: "Bistrô",
-  izakaya: "Izakaya",
-  rotisseria: "Rotisseria",
-  padaria: "Padaria",
-  pub: "Pub",
-}
+  restaurante: 'Restaurante',
+  café: 'Café',
+  bar: 'Bar',
+  lanchonete: 'Lanchonete',
+  delivery: 'Delivery',
+  mercado: 'Mercado',
+  bistrô: 'Bistrô',
+  izakaya: 'Izakaya',
+  rotisseria: 'Rotisseria',
+  padaria: 'Padaria',
+  pub: 'Pub',
+};
 
-export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [tags, setTags] = useState<Tag[]>([])
-  const [cuisines, setCuisines] = useState<CuisineType[]>([])
-  const [venueSearch, setVenueSearch] = useState("")
-  const [venueResults, setVenueResults] = useState<Venue[]>([])
-  const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null)
-  const [isNewVenue, setIsNewVenue] = useState(false)
-  const [userId, setUserId] = useState<string | null>(null)
+export function AddLogModal({
+  open,
+  onOpenChange,
+  onSuccess,
+  logToEdit,
+}: AddLogModalProps) {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [cuisines, setCuisines] = useState<CuisineType[]>([]);
+  const [venueSearch, setVenueSearch] = useState('');
+  const [venueResults, setVenueResults] = useState<Venue[]>([]);
+  const [selectedVenue, setSelectedVenue] = useState<Venue | null>(null);
+  const [isNewVenue, setIsNewVenue] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const form = useForm({
     resolver: zodResolver(createLogSchema),
@@ -78,120 +95,176 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
       is_private: false,
       tag_ids: [],
       cuisine_ids: [],
-      visited_at: "",
+      visited_at: '',
+      text_review: '',
+      venue_id: undefined as string | undefined, // Explicit type for TS
+      venue_name: undefined as string | undefined,
     },
-  })
+  });
 
   // Load user and initial data
   useEffect(() => {
-    if (!open) return
-
-    if (!form.getValues("visited_at")) {
-      form.setValue("visited_at", format(new Date(), "yyyy-MM-dd"))
-    }
+    if (!open) return;
 
     const loadData = async () => {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
       if (user) {
-        setUserId(user.id)
+        setUserId(user.id);
         const [tagsData, cuisinesData] = await Promise.all([
           getTags(user.id),
           getCuisineTypes(user.id),
-        ])
-        setTags(tagsData)
-        setCuisines(cuisinesData)
+        ]);
+        setTags(tagsData);
+        setCuisines(cuisinesData);
+      }
+    };
+
+    loadData();
+  }, [open]);
+
+  // Populate form for editing
+  useEffect(() => {
+    if (open && logToEdit) {
+      // Set venue
+      setSelectedVenue(logToEdit.venue);
+      form.setValue('venue_id', logToEdit.venue.id);
+      setVenueSearch(logToEdit.venue.name);
+
+      // Set other fields
+      form.setValue('rating', logToEdit.rating);
+      form.setValue('text_review', logToEdit.text_review || '');
+      form.setValue(
+        'visited_at',
+        logToEdit.visited_at ? logToEdit.visited_at.split('T')[0] : '',
+      );
+      form.setValue('is_private', logToEdit.is_private);
+      form.setValue('tag_ids', logToEdit.tags?.map((t) => t.id) || []);
+    } else if (open && !logToEdit) {
+      // Reset defaults for creation if not editing
+      // We only do this if we are opening fresh (handled by reset on open/close usually, but let's be safe)
+      if (!form.getValues('visited_at')) {
+        form.setValue('visited_at', format(new Date(), 'yyyy-MM-dd'));
       }
     }
-
-    loadData()
-  }, [open, form])
+  }, [open, logToEdit, form]);
 
   // Search venues
   useEffect(() => {
+    if (logToEdit) return; // Don't search when editing
     if (venueSearch.length < 2) {
-      setVenueResults([])
-      return
+      setVenueResults([]);
+      return;
     }
 
-    const timeout = setTimeout(async () => {
-      const results = await searchVenues(venueSearch)
-      setVenueResults(results)
-    }, 300)
+    if (selectedVenue && venueSearch === selectedVenue.name) return;
 
-    return () => clearTimeout(timeout)
-  }, [venueSearch])
+    const timeout = setTimeout(async () => {
+      const results = await searchVenues(venueSearch);
+      setVenueResults(results);
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [venueSearch, selectedVenue, logToEdit]);
 
   const handleVenueSelect = (venue: Venue) => {
-    setSelectedVenue(venue)
-    setIsNewVenue(false)
-    form.setValue("venue_id", venue.id)
-    form.setValue("venue_name", undefined)
-    setVenueSearch(venue.name)
-    setVenueResults([])
-  }
+    setSelectedVenue(venue);
+    setIsNewVenue(false);
+    form.setValue('venue_id', venue.id);
+    form.setValue('venue_name', undefined);
+    setVenueSearch(venue.name);
+    setVenueResults([]);
+  };
 
   const handleCreateNewVenue = () => {
-    setSelectedVenue(null)
-    setIsNewVenue(true)
-    form.setValue("venue_id", undefined)
-    form.setValue("venue_name", venueSearch)
-  }
+    setSelectedVenue(null);
+    setIsNewVenue(true);
+    form.setValue('venue_id', undefined);
+    form.setValue('venue_name', venueSearch);
+  };
 
   const handleCreateTag = async (name: string): Promise<Tag> => {
-    if (!userId) throw new Error("User not logged in")
+    if (!userId) throw new Error('User not logged in');
     const newTag = await createTag({
       name,
-      color: "#6366f1",
+      color: '#6366f1',
       created_by: userId,
-    })
-    setTags((prev) => [...prev, newTag])
-    return newTag
-  }
+    });
+    setTags((prev) => [...prev, newTag]);
+    return newTag;
+  };
 
   const onSubmit = async (data: CreateLogFormData) => {
     if (!userId) {
-      toast.error("Você precisa estar logado")
-      return
+      toast.error('Você precisa estar logado');
+      return;
     }
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     try {
-      await createLog(userId, data)
-      toast.success("Log criado com sucesso!")
-      form.reset()
-      setSelectedVenue(null)
-      setVenueSearch("")
-      setIsNewVenue(false)
-      onOpenChange(false)
-      onSuccess?.()
+      if (logToEdit) {
+        await updateLog(logToEdit.id, userId, data);
+        toast.success('Log atualizado com sucesso!');
+      } else {
+        await createLog(userId, data);
+        toast.success('Log criado com sucesso!');
+      }
+
+      handleReset();
+      onOpenChange(false);
+      onSuccess?.();
     } catch (error) {
-      console.error(error)
-      toast.error("Erro ao criar log. Tente novamente.")
+      console.error(error);
+      toast.error(
+        logToEdit
+          ? 'Erro ao atualizar log.'
+          : 'Erro ao criar log. Tente novamente.',
+      );
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleReset = () => {
-    form.reset()
-    setSelectedVenue(null)
-    setVenueSearch("")
-    setIsNewVenue(false)
-    setVenueResults([])
-  }
+    form.reset({
+      rating: 3,
+      is_private: false,
+      tag_ids: [],
+      cuisine_ids: [],
+      visited_at: format(new Date(), 'yyyy-MM-dd'),
+      text_review: '',
+      venue_id: undefined,
+      venue_name: undefined,
+    });
+    setSelectedVenue(null);
+    setVenueSearch('');
+    setIsNewVenue(false);
+    setVenueResults([]);
+  };
+
+  const isEditing = !!logToEdit;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (!val) handleReset();
+        onOpenChange(val);
+      }}
+    >
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl">Novo Log</DialogTitle>
+          <DialogTitle className="text-xl">
+            {isEditing ? 'Editar Log' : 'Novo Log'}
+          </DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-            {/* Venue Search/Create */}
+            {/* Venue Search/Create - Disabled when editing */}
             <div className="space-y-3">
               <Label>Local</Label>
               <div className="relative">
@@ -200,51 +273,56 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
                   placeholder="Buscar ou criar local..."
                   value={venueSearch}
                   onChange={(e) => {
-                    setVenueSearch(e.target.value)
-                    if (selectedVenue) setSelectedVenue(null)
+                    setVenueSearch(e.target.value);
+                    if (selectedVenue && !isEditing) setSelectedVenue(null);
                   }}
                   className="pl-9"
+                  disabled={isEditing}
                 />
               </div>
 
-              {/* Search results */}
-              {venueResults.length > 0 && !selectedVenue && (
-                <div className="border rounded-xl overflow-hidden divide-y">
-                  {venueResults.map((venue) => (
-                    <button
-                      key={venue.id}
-                      type="button"
-                      onClick={() => handleVenueSelect(venue)}
-                      className="w-full px-3 py-2.5 text-left hover:bg-muted transition-colors"
-                    >
-                      <p className="font-medium text-sm">{venue.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {venueTypeLabels[venue.type]}
-                      </p>
-                    </button>
-                  ))}
-                </div>
+              {!isEditing && (
+                <>
+                  {/* Search results */}
+                  {venueResults.length > 0 && !selectedVenue && (
+                    <div className="border rounded-xl overflow-hidden divide-y">
+                      {venueResults.map((venue) => (
+                        <button
+                          key={venue.id}
+                          type="button"
+                          onClick={() => handleVenueSelect(venue)}
+                          className="w-full px-3 py-2.5 text-left hover:bg-muted transition-colors"
+                        >
+                          <p className="font-medium text-sm">{venue.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {venueTypeLabels[venue.type]}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Create new venue option */}
+                  {venueSearch.length >= 2 &&
+                    !selectedVenue &&
+                    !venueResults.some(
+                      (v) => v.name.toLowerCase() === venueSearch.toLowerCase(),
+                    ) && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCreateNewVenue}
+                        className="w-full"
+                      >
+                        Criar &quot;{venueSearch}&quot;
+                      </Button>
+                    )}
+                </>
               )}
 
-              {/* Create new venue option */}
-              {venueSearch.length >= 2 &&
-                !selectedVenue &&
-                !venueResults.some(
-                  (v) => v.name.toLowerCase() === venueSearch.toLowerCase()
-                ) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleCreateNewVenue}
-                    className="w-full"
-                  >
-                    Criar &quot;{venueSearch}&quot;
-                  </Button>
-                )}
-
               {/* New venue form */}
-              {isNewVenue && (
+              {isNewVenue && !isEditing && (
                 <div className="space-y-3 p-3 bg-muted/50 rounded-xl">
                   <FormField
                     control={form.control}
@@ -281,7 +359,11 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
                       <FormItem>
                         <FormLabel>Cidade</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: São Paulo" {...field} value={field.value ?? ''} />
+                          <Input
+                            placeholder="Ex: São Paulo"
+                            {...field}
+                            value={field.value ?? ''}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -295,7 +377,11 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
                       <FormItem>
                         <FormLabel>Bairro</FormLabel>
                         <FormControl>
-                          <Input placeholder="Ex: Vila Madalena" {...field} value={field.value ?? ''} />
+                          <Input
+                            placeholder="Ex: Vila Madalena"
+                            {...field}
+                            value={field.value ?? ''}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -308,13 +394,13 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
                     <TagSelector
                       tags={cuisines.map((c) => ({
                         id: c.id,
-                        name: `${c.icon ?? ""} ${c.name}`.trim(),
-                        color: "#f59e0b",
+                        name: `${c.icon ?? ''} ${c.name}`.trim(),
+                        color: '#f59e0b',
                         created_at: c.created_at,
                         created_by: c.created_by,
                       }))}
-                      selectedIds={form.watch("cuisine_ids") ?? []}
-                      onChange={(ids) => form.setValue("cuisine_ids", ids)}
+                      selectedIds={form.watch('cuisine_ids') ?? []}
+                      onChange={(ids) => form.setValue('cuisine_ids', ids)}
                       placeholder="Adicionar culinária..."
                     />
                   </div>
@@ -366,8 +452,8 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
               <Label className="mb-2 block">Tags</Label>
               <TagSelector
                 tags={tags}
-                selectedIds={form.watch("tag_ids") ?? []}
-                onChange={(ids) => form.setValue("tag_ids", ids)}
+                selectedIds={form.watch('tag_ids') ?? []}
+                onChange={(ids) => form.setValue('tag_ids', ids)}
                 onCreateTag={handleCreateTag}
                 placeholder="Adicionar tags..."
               />
@@ -384,11 +470,7 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
                     <FormControl>
                       <div className="relative">
                         <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="date"
-                          className="pl-9"
-                          {...field}
-                        />
+                        <Input type="date" className="pl-9" {...field} />
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -405,7 +487,7 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
                     <FormControl>
                       <Button
                         type="button"
-                        variant={field.value ? "secondary" : "outline"}
+                        variant={field.value ? 'secondary' : 'outline'}
                         className="w-full justify-start gap-2"
                         onClick={() => field.onChange(!field.value)}
                       >
@@ -436,22 +518,23 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
                 type="button"
                 variant="outline"
                 className="flex-1"
-                onClick={handleReset}
+                onClick={() => {
+                  handleReset();
+                  onOpenChange(false);
+                }}
               >
-                Limpar
+                Cancelar
               </Button>
-              <Button
-                type="submit"
-                className="flex-1"
-                disabled={isSubmitting}
-              >
+              <Button type="submit" className="flex-1" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Salvando...
                   </>
+                ) : isEditing ? (
+                  'Salvar Alterações'
                 ) : (
-                  "Salvar Log"
+                  'Salvar Log'
                 )}
               </Button>
             </div>
@@ -459,5 +542,5 @@ export function AddLogModal({ open, onOpenChange, onSuccess }: AddLogModalProps)
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
