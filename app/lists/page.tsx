@@ -22,10 +22,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { BottomNav } from "@/components/bottom-nav"
 import { AddLogModal } from "@/components/add-log-modal"
-import { getUserLists, createList, getListWithVenues } from "@/lib/queries"
+import { getUserLists, createList, getListWithVenues, deleteList } from "@/lib/queries"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "sonner"
-import type { List } from "@/lib/types"
+import type { List, Profile } from "@/lib/types"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { listSchema, type ListFormData } from "@/lib/schemas"
@@ -164,12 +164,17 @@ export default function ListsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAddLogModalOpen, setIsAddLogModalOpen] = useState(false)
   const [isCreateListModalOpen, setIsCreateListModalOpen] = useState(false)
+  const [currentUserProfile, setCurrentUserProfile] = useState<Profile | null>(null)
 
   const loadData = async () => {
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
     
     if (!user) return
+    
+    // Fetch profile for admin check
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    setCurrentUserProfile(profile as Profile)
     
     setIsLoading(true)
     try {
@@ -231,33 +236,12 @@ export default function ListsPage() {
             ) : lists.length > 0 ? (
               lists.map((list) => (
                   <ListCard
-                  key={list.id}
-                  list={list}
-                  venueCount={venueCounts[list.id] ?? 0}
-                  onDelete={!list.is_default ? () => {
-                     // Since we don't have direct access to delete from here easily without duplicating logic or refactoring more, 
-                     // and the original ListCard didn't implemented delete action binding in the main list, 
-                     // I will implement a temporary mock or just pass undefined if not ready, 
-                     // but wait, the original code had a dropdown with delete button but no action bound to it?
-                     // Ah, looking at the original code...
-                     // The original ListCard had a DropdownMenu item "Excluir" but no onClick handler was visibly passed or implemented in the component code I saw in the `view_file`.
-                     // Wait, let me check the `view_file` output for `app/lists/page.tsx` again.
-                     // The `view_file` showed `ListCard` component defined locally.
-                     // It had `<DropdownMenuItem className="text-destructive">` but NO `onClick`. So it was doing nothing.
-                     // My new `ListCard` component accepts `onDelete`.
-                     // I should probably implement the delete logic here or just pass undefined to hide it if I can't easily hook it up.
-                     // But wait, `ListsManager` had delete logic. `ListsPage` has no delete logic function defined.
-                     // I'll leave it as is for now (no interactive delete on the card itself on this page, similar to before where it did nothing)
-                     // actually, the original code SHOWED the dropdown but it didn't work? 
-                     // "DropdownMenuItem className="text-destructive"" 
-                     // Yes.
-                     // So passing props without onDelete will just hide the dropdown in my new component if I made it conditional.
-                     // My new component: `{onDelete && ( ... dropdown ... )}`
-                     // So if I don't pass onDelete, the dropdown won't show.
-                     // This is actually BETTER than showing a broken button.
-                     // So I will just pass list and venueCount.
-                  } : undefined}
-                />
+                    key={list.id}
+                    list={list}
+                    venueCount={venueCounts[list.id] ?? 0}
+                    currentUserProfile={currentUserProfile}
+                    onRefresh={loadData}
+                  />
               ))
             ) : (
               <div className="text-center py-16 px-4">

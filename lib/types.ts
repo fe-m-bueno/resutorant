@@ -205,6 +205,7 @@ export type Database = {
           website: string | null;
           disable_own_social: boolean;
           disable_view_others_social: boolean;
+          is_admin: boolean;
         };
         Insert: {
           avatar_url?: string | null;
@@ -216,6 +217,7 @@ export type Database = {
           website?: string | null;
           disable_own_social?: boolean;
           disable_view_others_social?: boolean;
+          is_admin?: boolean;
         };
         Update: {
           avatar_url?: string | null;
@@ -227,6 +229,7 @@ export type Database = {
           website?: string | null;
           disable_own_social?: boolean;
           disable_view_others_social?: boolean;
+          is_admin?: boolean;
         };
         Relationships: [];
       };

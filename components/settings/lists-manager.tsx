@@ -143,7 +143,11 @@ export function ListsManager() {
 
   const handleDelete = async (id: string) => {
     try {
-      await deleteList(id);
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      await deleteList(id, user.id);
       toast.success("Lista removida!");
       loadLists();
     } catch (error) {

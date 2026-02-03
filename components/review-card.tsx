@@ -9,9 +9,13 @@ import {
   Heart,
   MessageCircle,
   Edit2,
+  Trash2,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react';
+import { toast } from 'sonner';
+import { deleteLog } from '@/lib/queries';
+import Link from 'next/link';
 import {
   differenceInMinutes,
   differenceInHours,
@@ -32,7 +36,10 @@ interface ReviewCardProps {
   likesCount?: number;
   isLiked?: boolean;
   onLike?: () => void;
-  currentUserProfile?: Profile;
+  onEdit?: (review: ReviewWithVenue) => void;
+  onRefresh?: () => void;
+  currentUserProfile?: Profile | null;
+  currentUserId?: string;
 }
 
 const formatRelativeDate = (dateString: string) => {
@@ -58,12 +65,10 @@ export const ReviewCard = memo(function ReviewCard({
   isLiked = false,
   onLike,
   onEdit,
+  onRefresh,
   currentUserId,
   currentUserProfile,
-}: ReviewCardProps & {
-  onEdit?: (review: ReviewWithVenue) => void;
-  currentUserId?: string;
-}) {
+}: ReviewCardProps) {
   const [showComments, setShowComments] = React.useState(false);
 
   const location = review.venue.location as {
@@ -98,7 +103,11 @@ export const ReviewCard = memo(function ReviewCard({
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           {author && (
-            <>
+            <Link
+              href={`/@${author.username}`}
+              className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            >
               <Avatar className="h-6 w-6">
                 <AvatarImage src={author.avatar_url ?? undefined} />
                 <AvatarFallback className="text-[10px] bg-secondary">
@@ -108,7 +117,7 @@ export const ReviewCard = memo(function ReviewCard({
               <span className="text-sm font-medium text-foreground/90">
                 @{author.username}
               </span>
-            </>
+            </Link>
           )}
         </div>
         <span className="text-xs text-muted-foreground font-medium">
@@ -200,8 +209,31 @@ export const ReviewCard = memo(function ReviewCard({
                 type="button"
                 onClick={() => onEdit(review)}
                 className="flex items-center gap-1 text-xs px-2 py-1 rounded-md text-muted-foreground hover:bg-secondary transition-colors"
+                title="Editar"
               >
                 <Edit2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+
+            {!isOwner && currentUserProfile?.is_admin && !review.is_private && (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (confirm('Tem certeza que deseja excluir este review?')) {
+                    try {
+                      await deleteLog(review.id, currentUserId!, true);
+                      toast.success('Review excluído pelo administrador.');
+                      onRefresh?.();
+                    } catch (e) {
+                      console.error(e);
+                      toast.error('Erro ao excluir review.');
+                    }
+                  }
+                }}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-md text-destructive hover:bg-destructive/10 transition-colors"
+                title="Excluir (Admin)"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             )}
 

@@ -12,6 +12,20 @@ import type {
 } from '@/lib/types';
 import type { CreateLogFormData, ProfileFormData } from '@/lib/schemas';
 
+const VENUE_TYPES = [
+  'restaurante',
+  'café',
+  'bar',
+  'lanchonete',
+  'delivery',
+  'mercado',
+  'bistrô',
+  'izakaya',
+  'rotisseria',
+  'padaria',
+  'pub',
+] as const;
+
 // ============================================================================
 // PROFILES
 // ============================================================================
@@ -25,6 +39,20 @@ export async function getProfile(userId: string): Promise<Profile | null> {
     .single();
 
   if (error) throw error;
+  return data;
+}
+
+export async function getProfileByUsername(
+  username: string,
+): Promise<Profile | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('username', username)
+    .single();
+
+  if (error) return null;
   return data;
 }
 
@@ -50,10 +78,20 @@ export async function updateProfile(
 
 export async function searchVenues(query: string): Promise<Venue[]> {
   const supabase = createClient();
+  
+  const matchingTypes = VENUE_TYPES.filter(type => 
+    type.toLowerCase().includes(query.toLowerCase())
+  );
+
+  let orCondition = `name.ilike.%${query}%`;
+  if (matchingTypes.length > 0) {
+    orCondition += `,type.in.(${matchingTypes.join(',')})`;
+  }
+
   const { data, error } = await supabase
     .from('venues')
     .select('*')
-    .ilike('name', `%${query}%`)
+    .or(orCondition)
     .limit(10);
 
   if (error) throw error;
@@ -99,6 +137,32 @@ export async function getVenueWithCuisines(
   };
 
   return formattedVenue as VenueWithCuisines;
+}
+
+export async function updateVenue(
+  venueId: string,
+  data: Partial<Pick<Venue, 'name' | 'type' | 'location'>>,
+): Promise<Venue> {
+  const supabase = createClient();
+  const { data: venue, error } = await supabase
+    .from('venues')
+    .update(data)
+    .eq('id', venueId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return venue;
+}
+
+export async function deleteVenue(venueId: string): Promise<void> {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('venues')
+    .delete()
+    .eq('id', venueId);
+
+  if (error) throw error;
 }
 
 // ============================================================================
@@ -242,18 +306,31 @@ export async function updateLog(
   }
 }
 
-export async function deleteLog(logId: string, userId: string): Promise<void> {
+export async function deleteLog(
+  logId: string,
+  userId: string,
+  isAdmin?: boolean,
+): Promise<void> {
   const supabase = createClient();
 
   // Validate ownership
   const { data: existingReview, error: fetchError } = await supabase
     .from('reviews')
-    .select('user_id')
+    .select('user_id, is_private')
     .eq('id', logId)
     .single();
 
   if (fetchError || !existingReview) throw new Error('Review not found');
-  if (existingReview.user_id !== userId) throw new Error('Unauthorized');
+
+  // Admin can only delete public reviews of others
+  if (isAdmin) {
+    if (existingReview.is_private && existingReview.user_id !== userId) {
+      throw new Error('Unauthorized: Admin cannot delete private reviews');
+    }
+    // If it's public or own, proceed
+  } else if (existingReview.user_id !== userId) {
+    throw new Error('Unauthorized');
+  }
 
   // Delete related data first (foreign key constraints usually handle this if set to CASCADE,
   // but let's be explicit to be safe or if constraints aren't set up that way)
@@ -469,6 +546,48 @@ export async function getUserLists(userId: string): Promise<List[]> {
   return data ?? [];
 }
 
+export async function getUserListsWithCounts(
+  userId: string,
+  options?: { includePrivate?: boolean },
+): Promise<(List & { venue_count: number; author?: { username: string | null } })[]> {
+  const supabase = createClient();
+
+  let query = supabase
+    .from('lists')
+    .select('*, author:profiles(username)')
+    .eq('user_id', userId)
+    .order('is_default', { ascending: false })
+    .order('name');
+
+  if (!options?.includePrivate) {
+    query = query.eq('is_public', true);
+  }
+
+  const { data: lists, error } = await query;
+
+  if (error) throw error;
+
+  if (!lists?.length) return [];
+
+  // Fetch venue counts for these lists
+  const listsWithCounts = await Promise.all(
+    lists.map(async (list) => {
+      const { count } = await supabase
+        .from('list_venues')
+        .select('*', { count: 'exact', head: true })
+        .eq('list_id', list.id);
+
+      return {
+        ...list,
+        author: list.author as any,
+        venue_count: count || 0,
+      };
+    }),
+  );
+
+  return listsWithCounts;
+}
+
 export async function getListWithVenues(
   listId: string,
 ): Promise<ListWithVenues | null> {
@@ -571,8 +690,30 @@ export async function updateList(
   return list;
 }
 
-export async function deleteList(id: string): Promise<void> {
+export async function deleteList(
+  id: string,
+  userId: string,
+  isAdmin?: boolean,
+): Promise<void> {
   const supabase = createClient();
+
+  // Validate ownership
+  const { data: existingList, error: fetchError } = await supabase
+    .from('lists')
+    .select('user_id, is_public')
+    .eq('id', id)
+    .single();
+
+  if (fetchError || !existingList) throw new Error('List not found');
+
+  if (isAdmin) {
+    if (!existingList.is_public && existingList.user_id !== userId) {
+      throw new Error('Unauthorized: Admin cannot delete private lists');
+    }
+  } else if (existingList.user_id !== userId) {
+    throw new Error('Unauthorized');
+  }
+
   const { error } = await supabase.from('lists').delete().eq('id', id);
   if (error) throw error;
 }
@@ -581,68 +722,133 @@ export async function deleteList(id: string): Promise<void> {
 // CREATE LOG (Combined Venue + Review)
 // ============================================================================
 
+
+export async function searchProfiles(query: string): Promise<Profile[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .ilike('username', `%${query}%`)
+    .limit(10);
+
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function searchLists(query: string): Promise<
+  (List & {
+    author: { username: string | null } | null;
+    venue_count: number;
+  })[]
+> {
+  const supabase = createClient();
+  
+  // First fetch the lists with author
+  const { data: lists, error } = await supabase
+    .from('lists')
+    .select('*, author:profiles(username)')
+    .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
+    .eq('is_public', true)
+    .limit(10);
+
+  if (error) throw error;
+
+  // Then fetch venue counts for these lists
+  if (!lists?.length) return [];
+
+  const listsWithCounts = await Promise.all(
+    lists.map(async (list) => {
+      const { count } = await supabase
+        .from('list_venues')
+        .select('*', { count: 'exact', head: true })
+        .eq('list_id', list.id);
+        
+      return {
+        ...list,
+        author: list.author as any,
+        venue_count: count || 0
+      };
+    })
+  );
+
+  return listsWithCounts;
+}
+
 export async function searchReviews(
   query: string,
   limit = 20,
 ): Promise<ReviewWithVenue[]> {
   const supabase = createClient();
 
-  // Search for venues matching the query
+  // 1. Search for venues matching the query (by name or type)
+  const matchingTypes = VENUE_TYPES.filter(type => 
+    type.toLowerCase().includes(query.toLowerCase())
+  );
+
+  let venueOrCondition = `name.ilike.%${query}%`;
+  if (matchingTypes.length > 0) {
+    venueOrCondition += `,type.in.(${matchingTypes.join(',')})`;
+  }
+
   const { data: venues } = await supabase
     .from('venues')
     .select('id')
-    .ilike('name', `%${query}%`);
+    .or(venueOrCondition);
 
   const venueIds = venues?.map((v) => v.id) ?? [];
 
-  // Search reviews by text_review or by matching venue
-  let reviewsQuery = supabase
+  // 2. Search for tags matching the query
+  const { data: tags } = await supabase
+    .from('tags')
+    .select('id')
+    .ilike('name', `%${query}%`);
+
+  const tagIds = tags?.map((t) => t.id) ?? [];
+
+  // 3. Find review IDs associated with those tags
+  let reviewIdsFromTags: string[] = [];
+  if (tagIds.length > 0) {
+    const { data: reviewTagLinks } = await supabase
+      .from('review_tags')
+      .select('review_id')
+      .in('tag_id', tagIds);
+    reviewIdsFromTags = reviewTagLinks?.map((l) => l.review_id) ?? [];
+  }
+
+  // 4. Build the final OR condition for reviews
+  const orConditions = [`text_review.ilike.%${query}%`];
+  if (venueIds.length > 0) {
+    orConditions.push(`venue_id.in.(${venueIds.join(',')})`);
+  }
+  if (reviewIdsFromTags.length > 0) {
+    orConditions.push(`id.in.(${reviewIdsFromTags.join(',')})`);
+  }
+
+  // 5. Search reviews
+  const { data: reviews, error } = await supabase
     .from('reviews')
     .select(
       '*, venue:venues(*), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
     )
+    .or(orConditions.join(','))
     .order('visited_at', { ascending: false })
     .limit(limit);
 
-  if (venueIds.length > 0) {
-    reviewsQuery = reviewsQuery.or(
-      `text_review.ilike.%${query}%,venue_id.in.(${venueIds.join(',')})`,
-    );
-  } else {
-    reviewsQuery = reviewsQuery.ilike('text_review', `%${query}%`);
-  }
-
-  const { data: reviews, error } = await reviewsQuery;
-
   if (error) throw error;
 
-  // Fetch tags for each review
+  // 6. Fetch tags for each review to satisfy the ReviewWithVenue type
   const reviewsWithTags = await Promise.all(
     (reviews ?? []).map(async (review) => {
       const { data: tagLinks } = await supabase
         .from('review_tags')
-        .select('tag_id')
+        .select('tag:tags(*)')
         .eq('review_id', review.id);
 
-      if (tagLinks?.length) {
-        const { data: tags } = await supabase
-          .from('tags')
-          .select('*')
-          .in(
-            'id',
-            tagLinks.map((l) => l.tag_id),
-          );
-
-        return {
-          ...review,
-          tags: tags ?? [],
-          _count: { comments: (review as any).comments?.[0]?.count || 0 },
-        };
-      }
+      const tags = tagLinks?.map((l: any) => l.tag).filter(Boolean) || [];
 
       return {
         ...review,
-        tags: [],
+        tags,
         _count: { comments: (review as any).comments?.[0]?.count || 0 },
         author: (review as any).author,
       };

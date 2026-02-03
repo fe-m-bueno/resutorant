@@ -321,6 +321,7 @@ export default function DashboardPage() {
                     currentUserId={profile?.id}
                     currentUserProfile={profile ?? undefined}
                     onLike={() => handleLike(review)}
+                    onRefresh={loadData}
                   />
                 ))
               ) : (

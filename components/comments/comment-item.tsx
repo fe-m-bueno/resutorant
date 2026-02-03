@@ -46,10 +46,32 @@ export function CommentItem({
   const handleDelete = async () => {
     if (!confirm('Tem certeza que deseja excluir este comentário?')) return;
     setIsDeleting(true);
+
+    // Optimistic Update
+    const queryKey = ['comments', logId];
+    await queryClient.cancelQueries({ queryKey });
+    const previousComments = queryClient.getQueryData<CommentWithUser[]>(queryKey);
+
+    queryClient.setQueryData(queryKey, (old: CommentWithUser[] | undefined) => {
+      if (!old) return [];
+      // If it's a parent comment, we might want to remove its children too from the UI immediately?
+      // Or just let the tree rebuild handle it? 
+      // The tree builder filters children if parent is missing?
+      // Actually comment-section rebuilds tree from flat list.
+      // If we remove parent from flat list, children will be orphans or filtered out depending on logic.
+      // Let's check comment-section logic again.
+      // "if (c.parent_id && commentsMap[c.parent_id]) ... else roots.push..."
+      // If parent is missing, child won't be pushed to replies AND won't be pushed to roots (unless parent_id is null).
+      // So removing parent effectively hides tree.
+      return old.filter((c) => c.id !== comment.id);
+    });
+
     try {
       await deleteComment(comment.id);
       toast.success('Comentário excluído.');
     } catch (error) {
+      // Rollback
+      queryClient.setQueryData(queryKey, previousComments);
       toast.error('Erro ao excluir comentário.');
       console.error(error);
     } finally {

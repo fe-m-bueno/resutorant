@@ -1,5 +1,4 @@
-'use client';
-
+import { useState } from 'react';
 import { List as ListIcon, Globe, Lock, MoreHorizontal, Trash2 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -9,17 +8,47 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { List } from '@/lib/types';
+import { deleteList } from '@/lib/queries';
+import { toast } from 'sonner';
+import type { List, Profile } from '@/lib/types';
+
+import Link from 'next/link';
 
 export function ListCard({ 
   list, 
   venueCount,
-  onDelete
+  currentUserProfile,
+  onRefresh,
+  author
 }: { 
   list: List
   venueCount: number
-  onDelete?: (id: string) => void
+  currentUserProfile?: Profile | null
+  onRefresh?: () => void
+  author?: { username: string | null }
 }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  
+  const isOwner = currentUserProfile?.id === list.user_id;
+  const isAdmin = currentUserProfile?.is_admin;
+  const canDelete = !list.is_default && (isOwner || (isAdmin && list.is_public));
+
+  const handleDelete = async () => {
+    if (!confirm('Tem certeza que deseja excluir esta lista?')) return;
+    
+    setIsDeleting(true);
+    try {
+      await deleteList(list.id, currentUserProfile!.id, isAdmin);
+      toast.success('Lista excluída com sucesso!');
+      onRefresh?.();
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao excluir lista.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="group relative rounded-2xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20">
       <div className="flex items-start justify-between gap-3">
@@ -35,6 +64,19 @@ export function ListCard({
             <h3 className="font-medium truncate">{list.name}</h3>
             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
               <span>{venueCount} {venueCount === 1 ? 'lugar' : 'lugares'}</span>
+              {author && (
+                <>
+                  <span>•</span>
+                  <Link 
+                    href={`/@${author.username}`}
+                    className="hover:underline hover:text-foreground"
+                    onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                  >
+                    @{author.username}
+                  </Link>
+                </>
+              )}
+              <span>•</span>
               {list.is_public ? (
                 <span className="flex items-center gap-0.5">
                   <Globe className="h-3 w-3" />
@@ -50,7 +92,7 @@ export function ListCard({
           </div>
         </div>
         
-        {onDelete && (
+        {canDelete && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -60,10 +102,11 @@ export function ListCard({
             <DropdownMenuContent align="end">
               <DropdownMenuItem 
                 className="text-destructive"
-                onClick={() => onDelete(list.id)}
+                onClick={handleDelete}
+                disabled={isDeleting}
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Excluir
+                Excluir {isAdmin && !isOwner ? '(Admin)' : ''}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

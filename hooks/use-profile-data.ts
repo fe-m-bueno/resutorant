@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProfile, getReviewsByUser } from '@/lib/queries';
+import { getProfile, getReviewsByUser, getProfileByUsername, getUserListsWithCounts } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/client';
 import { Profile, ReviewWithVenue } from '@/lib/types';
 
@@ -41,17 +41,89 @@ export function useUserReviews(userId: string | undefined) {
   });
 }
 
+export function useUserLists(
+  userId: string | undefined,
+  options?: { includePrivate?: boolean },
+) {
+  return useQuery({
+    queryKey: ['lists', userId, options?.includePrivate],
+    queryFn: async () => {
+      if (!userId) return [];
+      return getUserListsWithCounts(userId, options);
+    },
+    enabled: !!userId,
+  });
+}
+
+export function usePublicProfile(username: string) {
+  // 1. Fetch Profile by Username
+  const {
+    data: profile,
+    isLoading: isProfileLoading,
+    error: profileError,
+  } = useQuery({
+    queryKey: ['profile', username],
+    queryFn: async () => {
+      if (!username) return null;
+      // Handle the @ prefix if present
+      const cleanUsername =
+        username.startsWith('%40') || username.startsWith('@')
+          ? username.replace(/^%40|^@/, '')
+          : username;
+      return getProfileByUsername(cleanUsername);
+    },
+    enabled: !!username,
+  });
+
+  // 2. Fetch Reviews for that user (only if profile found)
+  const { data: reviews, isLoading: isReviewsLoading } = useQuery({
+    queryKey: ['reviews', profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      return getReviewsByUser(profile.id);
+    },
+    enabled: !!profile?.id,
+  });
+
+  // 3. Fetch Lists for that user (only public)
+  const { data: lists, isLoading: isListsLoading } = useQuery({
+    queryKey: ['lists', profile?.id, false],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      return getUserListsWithCounts(profile.id, { includePrivate: false });
+    },
+    enabled: !!profile?.id,
+  });
+
+  return {
+    profile,
+    reviews: reviews ?? [],
+    lists: lists ?? [],
+    isLoading:
+      isProfileLoading || (!!profile && (isReviewsLoading || isListsLoading)),
+    notFound: !isProfileLoading && !profile,
+  };
+}
+
 export function useProfileData() {
   const { data: user, isLoading: isUserLoading } = useUser();
   const { data: profile, isLoading: isProfileLoading } = useProfile(user?.id);
   const { data: reviews, isLoading: isReviewsLoading } = useUserReviews(
     user?.id,
   );
+  const { data: lists, isLoading: isListsLoading } = useUserLists(user?.id, {
+    includePrivate: true,
+  });
 
   return {
     user,
     profile,
     reviews: reviews ?? [],
-    isLoading: isUserLoading || isProfileLoading || isReviewsLoading,
+    lists: lists ?? [],
+    isLoading:
+      isUserLoading ||
+      isProfileLoading ||
+      isReviewsLoading ||
+      isListsLoading,
   };
 }
