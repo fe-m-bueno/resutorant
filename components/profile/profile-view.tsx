@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Settings, Edit2, Globe, Lock, List as ListIcon } from 'lucide-react';
+import { Settings, Edit2, Globe, Lock, List as ListIcon, Bookmark } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -20,10 +20,11 @@ import {
   RatingHistogramSkeleton,
 } from '@/components/rating-histogram';
 import { FilterBar, FilterBarSkeleton, type FilterState } from '@/components/profile/filter-bar';
-import type { ReviewWithVenue, Profile, List } from '@/lib/types';
+import type { ReviewWithVenue, Profile, List, VenueWithCuisines } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { ListCard, ListCardSkeleton } from '@/components/list-card';
+import { VenueCard, VenueCardSkeleton } from '@/components/venue-card';
 
 // Custom type for lists with count
 type ListWithCount = List & { venue_count: number; author?: { username: string | null } };
@@ -32,6 +33,7 @@ interface ProfileViewProps {
   profile: Profile | null | undefined;
   reviews: ReviewWithVenue[];
   lists?: ListWithCount[];
+  plannedVenues?: VenueWithCuisines[];
   isLoading: boolean;
   isOwnProfile: boolean;
   onEditLog?: (log: ReviewWithVenue) => void;
@@ -44,6 +46,7 @@ export function ProfileView({
   profile,
   reviews,
   lists = [],
+  plannedVenues = [],
   isLoading,
   isOwnProfile,
   onEditLog,
@@ -65,10 +68,15 @@ export function ProfileView({
   });
   const [sortOption, setSortOption] = useState('date-desc');
 
-  // Derive available options from all reviews (unfiltered)
+  // Derive available options from all reviews and planned venues (unfiltered)
+  const allVenues = [
+    ...reviews.map((r) => r.venue),
+    ...plannedVenues,
+  ];
+
   const availableCuisines = Array.from(
     new Map(
-      reviews.flatMap((r) => r.venue.cuisines || []).map((c) => [c.name, c]), // Deduplicate by name
+      allVenues.flatMap((v) => v.cuisines || []).map((c) => [c.name, c]), // Deduplicate by name
     ).values(),
   ).sort((a, b) => a.name.localeCompare(b.name));
 
@@ -80,13 +88,14 @@ export function ProfileView({
 
   const availableCities = Array.from(
     new Set(
-      reviews
-        .map((r) => (r.venue.location as any)?.city)
+      allVenues
+        .map((v) => (v.location as any)?.city)
         .filter(Boolean) as string[],
     ),
   ).sort();
+
   const availableTypes = Array.from(
-    new Set(reviews.map((r) => r.venue.type)),
+    new Set(allVenues.map((v) => v.type)),
   ).sort();
 
   const filteredReviews = reviews.filter((review) => {
@@ -160,6 +169,56 @@ export function ProfileView({
     return true;
   });
 
+  const filteredLists = lists.filter((list) => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const name = list.name.toLowerCase();
+      const desc = list.description?.toLowerCase() || '';
+      return name.includes(query) || desc.includes(query);
+    }
+    return true;
+  });
+
+  const filteredPlannedVenues = plannedVenues.filter((venue) => {
+    // Search Query
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const venueName = venue.name.toLowerCase();
+      const cuisines =
+        venue.cuisines?.map((c) => c.name.toLowerCase()).join(' ') || '';
+      const location = (venue.location as any)?.city?.toLowerCase() || '';
+
+      const matchesSearch =
+        venueName.includes(query) ||
+        cuisines.includes(query) ||
+        location.includes(query);
+
+      if (!matchesSearch) return false;
+    }
+
+    // Specific Filters
+    if (filters.city && (venue.location as any)?.city !== filters.city) {
+      return false;
+    }
+
+    if (
+      filters.types.length > 0 &&
+      !filters.types.includes(venue.type)
+    ) {
+      return false;
+    }
+
+    if (filters.cuisines.length > 0) {
+      const venueCuisines = venue.cuisines?.map((c) => c.name) || [];
+      const hasCuisine = filters.cuisines.some((c) =>
+        venueCuisines.includes(c),
+      );
+      if (!hasCuisine) return false;
+    }
+
+    return true;
+  });
+
   // Sorting Logic
   const sortedReviews = [...filteredReviews].sort((a, b) => {
     switch (sortOption) {
@@ -179,6 +238,27 @@ export function ProfileView({
         return b.rating - a.rating;
       case 'rating-asc':
         return a.rating - b.rating;
+  default:
+        return 0;
+    }
+  });
+
+  const sortedPlannedVenues = [...filteredPlannedVenues].sort((a, b) => {
+    switch (sortOption) {
+      case "date-desc":
+        // For planned venues, we might don't have a visited_at, so use created_at if available
+        // But user_venue_plans has created_at, however Venue type might not have it directly if it's the venue object
+        // Actually Venue has created_at
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      case "date-asc":
+        return (
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+      case "alpha-asc":
+        return a.name.localeCompare(b.name);
+      // Rating doesn't apply to planned venues yet
       default:
         return 0;
     }
@@ -264,20 +344,26 @@ export function ProfileView({
                   </a>
                 )}
 
-                <div className="flex items-center gap-4 text-sm mt-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-foreground">
-                      {reviews.length}
-                    </span>
-                    <span className="text-muted-foreground">logs</span>
+                  <div className="flex items-center gap-4 text-sm mt-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-foreground">
+                        {reviews.length}
+                      </span>
+                      <span className="text-muted-foreground">logs</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-foreground">
+                        {new Set(reviews.map((r) => r.venue_id)).size}
+                      </span>
+                      <span className="text-muted-foreground">lugares</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-foreground">
+                        {plannedVenues.length}
+                      </span>
+                      <span className="text-muted-foreground">para ir</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-bold text-foreground">
-                      {new Set(reviews.map((r) => r.venue_id)).size}
-                    </span>
-                    <span className="text-muted-foreground">lugares</span>
-                  </div>
-                </div>
               </div>
             )}
           </div>
@@ -339,25 +425,44 @@ export function ProfileView({
         {/* Reviews Tabs */}
         <section className="mt-4 sm:mt-6">
           <Tabs defaultValue="all">
-            <TabsList className="w-full">
-              <TabsTrigger value="all" className="flex-1">
+            <TabsList className="w-full justify-start h-auto p-0 bg-transparent overflow-x-auto scrollbar-hide flex-nowrap border-b border-border/50 rounded-none gap-2 pb-px">
+              <TabsTrigger
+                value="all"
+                className="rounded-full px-4 py-2 text-xs font-semibold transition-all data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-md border border-transparent data-[state=inactive]:hover:bg-accent/50 flex-none h-9"
+              >
                 Todos ({sortedReviews.length})
               </TabsTrigger>
               {/* Only show Public/Private tabs if it's own profile, otherwise everything is public */}
               {isOwnProfile && (
                 <>
-                  <TabsTrigger value="public" className="flex-1">
+                  <TabsTrigger
+                    value="public"
+                    className="rounded-full px-4 py-2 text-xs font-semibold transition-all data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-md border border-transparent data-[state=inactive]:hover:bg-accent/50 flex-none h-9"
+                  >
                     Públicos ({publicReviews.length})
                   </TabsTrigger>
-                  <TabsTrigger value="private" className="flex-1">
-                    <Lock className="h-3 w-3 mr-1.5" />
+                  <TabsTrigger
+                    value="private"
+                    className="rounded-full px-4 py-2 text-xs font-semibold transition-all data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-md border border-transparent data-[state=inactive]:hover:bg-accent/50 flex-none h-9 gap-1.5"
+                  >
+                    <Lock className="h-3.5 w-3.5" />
                     Privados ({privateReviews.length})
                   </TabsTrigger>
                 </>
               )}
-              <TabsTrigger value="lists" className="flex-1">
-                <ListIcon className="h-3 w-3 mr-1.5" />
-                Listas ({lists.length})
+              <TabsTrigger
+                value="lists"
+                className="rounded-full px-4 py-2 text-xs font-semibold transition-all data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-md border border-transparent data-[state=inactive]:hover:bg-accent/50 flex-none h-9 gap-1.5"
+              >
+                <ListIcon className="h-3.5 w-3.5" />
+                Listas ({filteredLists.length})
+              </TabsTrigger>
+              <TabsTrigger
+                value="planned"
+                className="rounded-full px-4 py-2 text-xs font-semibold transition-all data-[state=active]:bg-foreground data-[state=active]:text-background data-[state=active]:shadow-md border border-transparent data-[state=inactive]:hover:bg-accent/50 flex-none h-9 gap-1.5"
+              >
+                <Bookmark className="h-3.5 w-3.5" />
+                Planejo Ir ({filteredPlannedVenues.length})
               </TabsTrigger>
             </TabsList>
 
@@ -467,9 +572,9 @@ export function ProfileView({
                     <ListCardSkeleton key={i} />
                   ))}
                 </div>
-              ) : lists.length > 0 ? (
+              ) : filteredLists.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {lists.map((list) => (
+                  {filteredLists.map((list) => (
                     <ListCard
                       key={list.id}
                       list={list}
@@ -483,6 +588,33 @@ export function ProfileView({
               ) : (
                 <p className="text-center py-8 text-muted-foreground w-full">
                   Nenhuma lista encontrada
+                </p>
+              )}
+            </TabsContent>
+
+            <TabsContent value="planned" className="mt-4">
+              {isLoading ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {Array.from({ length: 3 }).map((_, i) => (
+                    <VenueCardSkeleton key={i} />
+                  ))}
+                </div>
+              ) : sortedPlannedVenues.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {sortedPlannedVenues.map((venue) => (
+                    <VenueCard
+                      key={venue.id}
+                      venue={venue}
+                      currentUserProfile={currentUserProfile}
+                      onRefresh={onRefresh}
+                      isPlanned={true}
+                      showQuickActions={true}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center py-8 text-muted-foreground w-full">
+                  Nenhum plano para visitar lugares
                 </p>
               )}
             </TabsContent>

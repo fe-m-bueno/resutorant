@@ -28,13 +28,14 @@ export default function UserProfilePage(props: UserProfilePageProps) {
     queryClient.invalidateQueries({ queryKey: ['reviews'] });
     queryClient.invalidateQueries({ queryKey: ['profile'] });
     queryClient.invalidateQueries({ queryKey: ['lists'] });
+    queryClient.invalidateQueries({ queryKey: ['planned_venues'] });
   };
 
   // Check if it starts with @ or %40 (which is @ encoded)
   // If we are here, it means it matched [username], so we should check if it is intended as a profile route
   const isProfileRoute = decodedUsername.startsWith('@');
 
-  const { profile, reviews, lists, isLoading, notFound: profileNotFound } = usePublicProfile(
+  const { profile, reviews, lists, plannedVenues, isLoading, notFound: profileNotFound } = usePublicProfile(
     isProfileRoute ? decodedUsername : ''
   );
 
@@ -94,6 +95,7 @@ export default function UserProfilePage(props: UserProfilePageProps) {
         profile={profile}
         reviews={reviews}
         lists={lists}
+        plannedVenues={plannedVenues}
         isLoading={isLoading}
         isOwnProfile={isOwnProfile}
         onRefresh={handleRefresh}

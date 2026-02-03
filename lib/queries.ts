@@ -141,17 +141,44 @@ export async function getVenueWithCuisines(
 
 export async function updateVenue(
   venueId: string,
-  data: Partial<Pick<Venue, 'name' | 'type' | 'location'>>,
+  data: Partial<Pick<Venue, 'name' | 'type' | 'location'>> & {
+    cuisine_ids?: string[];
+  },
 ): Promise<Venue> {
   const supabase = createClient();
+  const { cuisine_ids, ...venueData } = data;
+
   const { data: venue, error } = await supabase
     .from('venues')
-    .update(data)
+    .update(venueData)
     .eq('id', venueId)
     .select()
     .single();
 
   if (error) throw error;
+
+  if (cuisine_ids) {
+    // Delete existing
+    const { error: deleteError } = await supabase
+      .from('venue_cuisines')
+      .delete()
+      .eq('venue_id', venueId);
+
+    if (deleteError) throw deleteError;
+
+    // Insert new
+    if (cuisine_ids.length > 0) {
+      const { error: insertError } = await supabase.from('venue_cuisines').insert(
+        cuisine_ids.map((cid) => ({
+          venue_id: venueId,
+          cuisine_id: cid,
+        })),
+      );
+
+      if (insertError) throw insertError;
+    }
+  }
+
   return venue;
 }
 
@@ -896,6 +923,11 @@ export async function createLog(
 
     if (error || !existingVenue) throw error || new Error('Venue not found');
     venue = existingVenue;
+
+    // Update cuisines for existing venue if provided
+    if (data.cuisine_ids?.length) {
+       await updateVenue(venueId!, { cuisine_ids: data.cuisine_ids });
+    }
   }
 
   // Create review
@@ -1045,4 +1077,94 @@ export async function getComments(logId: string) {
   if (error) throw error;
 
   return comments || [];
+}
+
+export async function searchVenuesWithFilters(
+  query: string,
+  type: string | null,
+  location: string,
+  cuisineIds: string[],
+  ids?: string[]
+): Promise<VenueWithCuisines[]> {
+  const supabase = createClient();
+  let dbQuery = supabase.from('venues').select(`
+    *, 
+    cuisines:venue_cuisines(cuisine:cuisine_types(*)),
+    reviews(price_level)
+  `);
+
+  if (query) {
+    dbQuery = dbQuery.ilike('name', `%${query}%`);
+  }
+
+  if (type && type !== 'all') {
+    dbQuery = dbQuery.eq('type', type);
+  }
+
+  if (location) {
+    dbQuery = dbQuery.or(`location->>city.ilike.%${location}%,location->>neighborhood.ilike.%${location}%`);
+  }
+
+  if (ids) {
+    if (ids.length === 0) return [];
+    dbQuery = dbQuery.in('id', ids);
+  }
+
+  if (cuisineIds.length > 0) {
+    const { data: cData } = await supabase
+      .from('venue_cuisines')
+      .select('venue_id')
+      .in('cuisine_id', cuisineIds);
+      
+    // Use Set to store unique venue IDs
+    const limitIds = Array.from(new Set(cData?.map((x) => x.venue_id) || []));
+    
+    if (limitIds.length === 0) return [];
+    dbQuery = dbQuery.in('id', limitIds);
+  }
+
+  const { data, error } = await dbQuery.order('name').limit(50);
+  if (error) throw error;
+  
+  // Transform results to match VenueWithCuisines
+  const formattedData = (data || []).map(venue => {
+    const reviews = (venue as any).reviews || [];
+    const avgPrice = reviews.length > 0
+      ? Math.ceil(reviews.reduce((acc: number, r: any) => acc + (r.price_level || 0), 0) / reviews.length)
+      : 0;
+
+    return {
+      ...venue,
+      cuisines: (venue as any).cuisines?.map((c: any) => c.cuisine).filter(Boolean) || [],
+      avg_price: avgPrice,
+    };
+  });
+
+  return formattedData as VenueWithCuisines[];
+}
+
+export async function getPlannedVenuesForUser(
+  userId: string,
+): Promise<VenueWithCuisines[]> {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from('user_venue_plans')
+    .select('venue:venues(*, cuisines:venue_cuisines(cuisine:cuisine_types(*)))')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  if (!data?.length) return [];
+
+  return data.map((d: any) => {
+    const venue = d.venue;
+    const cuisines =
+      venue?.cuisines?.map((c: any) => c.cuisine).filter(Boolean) || [];
+
+    return {
+      ...venue,
+      cuisines,
+    };
+  }) as VenueWithCuisines[];
 }

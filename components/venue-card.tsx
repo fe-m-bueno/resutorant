@@ -1,13 +1,25 @@
+"use client";
+
 import { useState } from 'react';
-import { MapPin, ChefHat, Edit2, Trash2 } from 'lucide-react';
+import Link from 'next/link';
+import { MapPin, ChefHat, Edit2, Trash2, Plus, Bookmark, BookmarkCheck } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { EditVenueModal } from '@/components/edit-venue-modal';
 import { deleteVenue } from '@/lib/queries';
+import { togglePlanToGo } from '@/lib/actions/plans';
 import { toast } from 'sonner';
-import type { Venue, Profile } from '@/lib/types';
+import type { Venue, Profile, VenueWithCuisines } from '@/lib/types';
+import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
+
+const AddLogModal = dynamic(
+  () => import('@/components/add-log-modal').then((m) => ({ default: m.AddLogModal })),
+  { ssr: false }
+);
 
 const venueTypeLabels: Record<string, string> = {
   restaurante: 'Restaurante',
@@ -26,14 +38,20 @@ const venueTypeLabels: Record<string, string> = {
 export function VenueCard({ 
   venue, 
   currentUserProfile,
-  onRefresh
+  onRefresh,
+  isPlanned: initialIsPlanned = false,
+  showQuickActions = false
 }: { 
-  venue: Venue;
+  venue: VenueWithCuisines;
   currentUserProfile?: Profile | null;
   onRefresh?: () => void;
+  isPlanned?: boolean;
+  showQuickActions?: boolean;
 }) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddLogOpen, setIsAddLogOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isPlanned, setIsPlanned] = useState(initialIsPlanned);
 
   const location = venue.location as { city?: string; neighborhood?: string };
   const locationText = [location?.neighborhood, location?.city]
@@ -63,56 +81,131 @@ export function VenueCard({
     }
   };
 
+  const handlePlanToggle = async () => {
+    if (!currentUserProfile) {
+      toast.error("Você precisa estar logado.");
+      return;
+    }
+
+    const newState = !isPlanned;
+    setIsPlanned(newState); // Optimistic
+
+    try {
+      await togglePlanToGo(venue.id);
+      toast.success(newState ? "Adicionado aos planos!" : "Removido dos planos.");
+    } catch (error) {
+      setIsPlanned(!newState); // Revert
+      console.error(error);
+      toast.error("Erro ao atualizar planos.");
+    }
+  };
+
   return (
     <>
-      <Card className="group overflow-hidden border-border/50 transition-all hover:shadow-md hover:border-border relative">
-        <CardContent className="p-4">
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
-              <ChefHat className="h-5 w-5" />
+      <Card className="group overflow-hidden border-border/50 transition-all hover:shadow-xl hover:border-primary/20 relative bg-card/50 backdrop-blur-sm">
+        <CardContent className="p-6 md:p-8 flex flex-col h-full">
+          <div className="flex items-start gap-5 flex-1">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary shrink-0 transition-transform group-hover:scale-105 group-hover:bg-primary/20">
+              <ChefHat className="h-8 w-8" />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="font-semibold text-base leading-tight truncate">
-                  {venue.name}
+              <div className="flex items-start justify-between gap-4">
+                <h3 className="font-bold text-xl md:text-2xl leading-tight text-foreground transition-colors flex-1 min-w-0">
+                  <Link href={`/venue/${venue.slug}`} className="hover:text-primary transition-colors">
+                    {venue.name}
+                  </Link>
                 </h3>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                <div className="flex items-center gap-1.5 shrink-0 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                   {canEdit && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-9 w-9 rounded-full hover:bg-muted"
                       onClick={() => setIsEditModalOpen(true)}
                     >
-                      <Edit2 className="h-3.5 w-3.5" />
+                      <Edit2 className="h-4 w-4" />
                     </Button>
                   )}
                   {canDelete && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      className="h-9 w-9 rounded-full text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={handleDelete}
                       disabled={isDeleting}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 mt-1.5 text-sm text-muted-foreground">
-                <Badge variant="secondary" className="text-xs font-normal">
-                  {venueTypeLabels[venue.type] ?? venue.type}
-                </Badge>
-                {locationText && (
-                  <span className="flex items-center gap-1 truncate text-xs">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    {locationText}
-                  </span>
+
+              <div className="flex flex-col gap-2.5 mt-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="text-xs font-semibold bg-primary/5 border-primary/10 text-primary uppercase tracking-wider">
+                    {venueTypeLabels[venue.type] ?? venue.type}
+                  </Badge>
+                  {(venue.avg_price ?? 0) > 0 && (
+                    <Badge variant="secondary" className="text-xs font-bold px-1.5 h-auto flex gap-px bg-primary/5 text-primary border-primary/10">
+                      {Array.from({ length: venue.avg_price ?? 0 }).map((_, i) => (
+                        <span key={i}>$</span>
+                      ))}
+                    </Badge>
+                  )}
+                </div>
+                {venue.cuisines && venue.cuisines.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {venue.cuisines.map((c) => (
+                      <Badge key={c.id} variant="secondary" className="text-[10px] md:text-xs font-medium bg-muted/50 text-muted-foreground whitespace-nowrap flex items-center gap-1.5 px-2.5 py-0.5">
+                        {c.icon && <span>{c.icon}</span>}
+                        <span>{c.name}</span>
+                      </Badge>
+                    ))}
+                  </div>
                 )}
               </div>
+
+              {locationText && (
+                <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground/80">
+                  <MapPin className="h-4 w-4 text-primary/60 shrink-0" />
+                  <span className="truncate">{locationText}</span>
+                </div>
+              )}
             </div>
           </div>
+
+          {showQuickActions && (
+            <>
+              <Separator className="my-6 opacity-30" />
+              <div className="flex items-center justify-between gap-4">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "flex-1 h-11 text-sm font-semibold gap-2 rounded-xl border transition-all",
+                    isPlanned 
+                      ? "bg-primary text-primary-foreground border-primary hover:bg-primary/90" 
+                      : "hover:bg-muted border-border/50"
+                  )}
+                  onClick={handlePlanToggle}
+                >
+                  {isPlanned ? <BookmarkCheck className="h-4 w-4" /> : <Bookmark className="h-4 w-4" />}
+                  <span>{isPlanned ? "Planejado" : "Planejo Ir"}</span>
+                </Button>
+                
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-11 w-11 rounded-xl shadow-sm hover:scale-105 active:scale-95 transition-all bg-primary/10 text-primary hover:bg-primary/20 shrink-0"
+                  onClick={() => setIsAddLogOpen(true)}
+                  title="Adicionar Log Rápido"
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -121,21 +214,43 @@ export function VenueCard({
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         onSuccess={onRefresh}
+        currentUserId={currentUserProfile?.id}
       />
+      
+      {showQuickActions && (
+        <AddLogModal
+          open={isAddLogOpen}
+          onOpenChange={setIsAddLogOpen}
+          initialVenue={venue}
+          onSuccess={onRefresh}
+        />
+      )}
     </>
   );
 }
 
 export function VenueCardSkeleton() {
   return (
-    <Card className="overflow-hidden border-border/50">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-3">
-          <Skeleton className="h-10 w-10 rounded-xl" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-5 w-3/4" />
+    <Card className="overflow-hidden border-border/50 bg-card/50">
+      <CardContent className="p-6 md:p-8 flex flex-col h-full">
+        <div className="flex items-start gap-5 flex-1">
+          <Skeleton className="h-16 w-16 rounded-2xl" />
+          <div className="flex-1 space-y-3">
+            <div className="space-y-2">
+              <Skeleton className="h-7 w-3/4" />
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-5 w-10" />
+                <Skeleton className="h-5 w-16" />
+              </div>
+            </div>
             <Skeleton className="h-4 w-1/2" />
           </div>
+        </div>
+        <Separator className="my-6 opacity-30" />
+        <div className="flex gap-4">
+          <Skeleton className="h-11 flex-1 rounded-xl" />
+          <Skeleton className="h-11 w-11 rounded-xl" />
         </div>
       </CardContent>
     </Card>

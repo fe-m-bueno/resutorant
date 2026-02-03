@@ -31,6 +31,7 @@ export const venueSchema = z.object({
   type: venueTypeSchema,
   location: locationSchema,
   google_place_id: z.string().optional(),
+  cuisine_ids: z.array(z.string().uuid()).optional(),
 });
 
 export type VenueFormData = z.infer<typeof venueSchema>;

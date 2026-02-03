@@ -131,7 +131,9 @@ export const ReviewCard = memo(function ReviewCard({
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-base leading-tight truncate flex flex-row gap-4">
-              {review.venue.name}
+              <Link href={`/venue/${review.venue.slug}`} className="hover:text-primary transition-colors">
+                {review.venue.name}
+              </Link>
               {review.is_private && (
                 <Lock className="h-3.5 w-3.5 text-muted-foreground" />
               )}

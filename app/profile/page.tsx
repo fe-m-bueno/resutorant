@@ -12,7 +12,7 @@ import { ProfileView } from '@/components/profile/profile-view';
 import type { ReviewWithVenue } from '@/lib/types';
 
 export default function ProfilePage() {
-  const { profile, reviews, lists, isLoading } = useProfileData();
+  const { profile, reviews, lists, plannedVenues, isLoading } = useProfileData();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<ReviewWithVenue | undefined>(
     undefined,
@@ -23,6 +23,7 @@ export default function ProfilePage() {
     queryClient.invalidateQueries({ queryKey: ['reviews'] });
     queryClient.invalidateQueries({ queryKey: ['profile'] });
     queryClient.invalidateQueries({ queryKey: ['lists'] });
+    queryClient.invalidateQueries({ queryKey: ['planned_venues'] });
   };
 
   const handleEditLog = (log: ReviewWithVenue) => {
@@ -54,6 +55,7 @@ export default function ProfilePage() {
         profile={profile}
         reviews={reviews}
         lists={lists}
+        plannedVenues={plannedVenues}
         isLoading={isLoading}
         isOwnProfile={true}
         onEditLog={handleEditLog}

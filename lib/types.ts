@@ -338,6 +338,40 @@ export type Database = {
         };
         Relationships: [];
       };
+      user_venue_plans: {
+        Row: {
+          id: string;
+          user_id: string;
+          venue_id: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          venue_id: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          venue_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_venue_plans_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "user_venue_plans_venue_id_fkey";
+            columns: ["venue_id"];
+            referencedRelation: "venues";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       venue_cuisines: {
         Row: {
           cuisine_id: string;
@@ -361,6 +395,7 @@ export type Database = {
           id: string;
           location: Json;
           name: string;
+          slug: string;
           type: VenueType;
           updated_at: string;
         };
@@ -371,6 +406,7 @@ export type Database = {
           id?: string;
           location?: Json;
           name: string;
+          slug?: string;
           type?: VenueType;
           updated_at?: string;
         };
@@ -381,6 +417,7 @@ export type Database = {
           id?: string;
           location?: Json;
           name?: string;
+          slug?: string;
           type?: VenueType;
           updated_at?: string;
         };
@@ -443,6 +480,7 @@ export type CommentWithUser = Comment & {
 
 export type VenueWithCuisines = Venue & {
   cuisines?: CuisineType[];
+  avg_price?: number;
 };
 
 export type ListWithVenues = List & {

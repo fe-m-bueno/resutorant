@@ -49,18 +49,20 @@ import {
   getTags,
   getCuisineTypes,
   searchVenues,
+  getVenueWithCuisines,
   createTag,
   createCuisine,
   deleteLog,
 } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/client';
-import type { Tag, CuisineType, Venue, ReviewWithVenue } from '@/lib/types';
+import type { Tag, CuisineType, Venue, ReviewWithVenue, VenueWithCuisines } from '@/lib/types';
 
 interface AddLogModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
   logToEdit?: ReviewWithVenue;
+  initialVenue?: Venue | null;
 }
 
 const venueTypeLabels: Record<string, string> = {
@@ -82,6 +84,7 @@ export function AddLogModal({
   onOpenChange,
   onSuccess,
   logToEdit,
+  initialVenue,
 }: AddLogModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -151,14 +154,27 @@ export function AddLogModal({
       form.setValue('is_private', logToEdit.is_private);
       form.setValue('price_level', logToEdit.price_level ?? 3);
       form.setValue('tag_ids', logToEdit.tags?.map((t) => t.id) || []);
+      form.setValue('cuisine_ids', logToEdit.venue.cuisines?.map((c) => c.id) || []);
     } else if (open && !logToEdit) {
       // Reset defaults for creation if not editing
       // We only do this if we are opening fresh (handled by reset on open/close usually, but let's be safe)
       if (!form.getValues('visited_at')) {
         form.setValue('visited_at', format(new Date(), 'yyyy-MM-dd'));
       }
+
+      if (initialVenue) {
+         setSelectedVenue(initialVenue);
+         form.setValue('venue_id', initialVenue.id);
+         setVenueSearch(initialVenue.name);
+         
+         // Pre-fill cuisines if already present in the initialVenue object
+         const venueWithCuisines = initialVenue as VenueWithCuisines;
+         if (venueWithCuisines.cuisines) {
+            form.setValue('cuisine_ids', venueWithCuisines.cuisines.map((c: CuisineType) => c.id));
+         }
+      }
     }
-  }, [open, logToEdit, form]);
+  }, [open, logToEdit, form, initialVenue]);
 
   // Search venues
   useEffect(() => {
@@ -178,13 +194,25 @@ export function AddLogModal({
     return () => clearTimeout(timeout);
   }, [venueSearch, selectedVenue, logToEdit]);
 
-  const handleVenueSelect = (venue: Venue) => {
+  const handleVenueSelect = async (venue: Venue) => {
     setSelectedVenue(venue);
     setIsNewVenue(false);
     form.setValue('venue_id', venue.id);
     form.setValue('venue_name', undefined);
     setVenueSearch(venue.name);
     setVenueResults([]);
+    
+    // Fetch and pre-fill cuisines
+    try {
+        const fullVenue = await getVenueWithCuisines(venue.id);
+        if (fullVenue && fullVenue.cuisines) {
+            form.setValue('cuisine_ids', fullVenue.cuisines.map((c: CuisineType) => c.id));
+        } else {
+            form.setValue('cuisine_ids', []);
+        }
+    } catch (e) {
+        console.error("Error fetching venue cuisines", e);
+    }
   };
 
   const handleCreateNewVenue = () => {
@@ -462,6 +490,26 @@ export function AddLogModal({
                     />
                   </div>
                 </div>
+              )}
+
+              {/* Cuisines for existing venue (Add more) */}
+              {!isNewVenue && selectedVenue && (
+                 <div className="space-y-2">
+                    <Label className="block">Culinária do Local</Label>
+                    <TagSelector
+                      tags={cuisines.map((c) => ({
+                        id: c.id,
+                        name: `${c.icon ?? ''} ${c.name}`.trim(),
+                        color: '#f59e0b',
+                        created_at: c.created_at,
+                        created_by: c.created_by,
+                      }))}
+                      selectedIds={form.watch('cuisine_ids') ?? []}
+                      onChange={(ids) => form.setValue('cuisine_ids', ids)}
+                      onCreateTag={handleCreateCuisine}
+                      placeholder="Adicionar culinária..."
+                    />
+                 </div>
               )}
             </div>
 

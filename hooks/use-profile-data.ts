@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getProfile, getReviewsByUser, getProfileByUsername, getUserListsWithCounts } from '@/lib/queries';
+import { getProfile, getReviewsByUser, getProfileByUsername, getUserListsWithCounts, getPlannedVenuesForUser } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/client';
 import { Profile, ReviewWithVenue } from '@/lib/types';
 
@@ -55,6 +55,17 @@ export function useUserLists(
   });
 }
 
+export function useUserPlannedVenues(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['planned_venues', userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      return getPlannedVenuesForUser(userId);
+    },
+    enabled: !!userId,
+  });
+}
+
 export function usePublicProfile(username: string) {
   // 1. Fetch Profile by Username
   const {
@@ -95,12 +106,25 @@ export function usePublicProfile(username: string) {
     enabled: !!profile?.id,
   });
 
+  // 4. Fetch Planned Venues for that user
+  const { data: plannedVenues, isLoading: isPlannedLoading } = useQuery({
+    queryKey: ['planned_venues', profile?.id],
+    queryFn: async () => {
+      if (!profile?.id) return [];
+      return getPlannedVenuesForUser(profile.id);
+    },
+    enabled: !!profile?.id,
+  });
+
   return {
     profile,
     reviews: reviews ?? [],
     lists: lists ?? [],
+    plannedVenues: plannedVenues ?? [],
     isLoading:
-      isProfileLoading || (!!profile && (isReviewsLoading || isListsLoading)),
+      isProfileLoading ||
+      (!!profile &&
+        (isReviewsLoading || isListsLoading || isPlannedLoading)),
     notFound: !isProfileLoading && !profile,
   };
 }
@@ -114,16 +138,19 @@ export function useProfileData() {
   const { data: lists, isLoading: isListsLoading } = useUserLists(user?.id, {
     includePrivate: true,
   });
+  const { data: plannedVenues, isLoading: isPlannedLoading } = useUserPlannedVenues(user?.id);
 
   return {
     user,
     profile,
     reviews: reviews ?? [],
     lists: lists ?? [],
+    plannedVenues: plannedVenues ?? [],
     isLoading:
       isUserLoading ||
       isProfileLoading ||
       isReviewsLoading ||
-      isListsLoading,
+      isListsLoading ||
+      isPlannedLoading,
   };
 }

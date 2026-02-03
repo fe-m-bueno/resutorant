@@ -34,15 +34,14 @@ import {
 } from '@/components/ui/form';
 import { venueSchema, type VenueFormData, VENUE_TYPES } from '@/lib/schemas';
 import {
-  updateVenue,
+  createVenue,
   getCuisineTypes,
   createCuisine,
-  getVenueWithCuisines,
 } from '@/lib/queries';
-import type { Venue, CuisineType } from '@/lib/types';
+import type { CuisineType } from '@/lib/types';
+import { createClient } from '@/lib/supabase/client';
 
-interface EditVenueModalProps {
-  venue: Venue | null;
+interface AddVenueModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -63,18 +62,24 @@ const venueTypeLabels: Record<string, string> = {
   pub: 'Pub',
 };
 
-export function EditVenueModal({
-  venue,
+export function AddVenueModal({
   open,
   onOpenChange,
   onSuccess,
   currentUserId,
-}: EditVenueModalProps) {
+}: AddVenueModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableCuisines, setAvailableCuisines] = useState<CuisineType[]>([]);
   const [isLoadingCuisines, setIsLoadingCuisines] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreatingCuisine, setIsCreatingCuisine] = useState(false);
+
+  // If currentUserId is not passed, try to get it
+  useEffect(() => {
+    if (!currentUserId && open) {
+        // This is a fallback, preferably pass it from parent
+    }
+  }, [currentUserId, open]);
 
   const filteredCuisines = availableCuisines.filter((cuisine) =>
     cuisine.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -96,17 +101,28 @@ export function EditVenueModal({
   useEffect(() => {
     if (open) {
       loadCuisines();
+      form.reset({
+        name: '',
+        type: 'restaurante',
+        location: { city: '', neighborhood: '' },
+        cuisine_ids: [],
+      });
     }
   }, [open, currentUserId]);
 
   const loadCuisines = async () => {
     try {
       setIsLoadingCuisines(true);
-      const data = await getCuisineTypes(currentUserId);
-      setAvailableCuisines(data);
+      // We need a user ID for getCuisineTypes usually to show user-specific ones if applicable,
+      // but here we just want all or defaults. If getCuisineTypes requires user_id, we need it.
+      // Looking at EditVenueModal, it passes currentUserId.
+      if (currentUserId) {
+        const data = await getCuisineTypes(currentUserId);
+        setAvailableCuisines(data);
+      }
     } catch (error) {
       console.error('Error loading cuisines:', error);
-      toast.error('Erro ao carregar culinárias');
+      // toast.error('Erro ao carregar culinárias');
     } finally {
       setIsLoadingCuisines(false);
     }
@@ -124,7 +140,7 @@ export function EditVenueModal({
 
       setAvailableCuisines((prev) => [...prev, newCuisine].sort((a, b) => a.name.localeCompare(b.name)));
       
-      // Auto-select the new cuisine
+      // Auto-select
       const currentIds = form.getValues('cuisine_ids') || [];
       form.setValue('cuisine_ids', [...currentIds, newCuisine.id]);
       
@@ -138,44 +154,24 @@ export function EditVenueModal({
     }
   };
 
-  useEffect(() => {
-    if (open && venue) {
-      const location = venue.location as any;
-      form.reset({
-        name: venue.name,
-        type: venue.type,
-        location: {
-          city: location?.city || '',
-          neighborhood: location?.neighborhood || '',
-          address: location?.address || '',
-          country: location?.country || '',
-        },
-      });
-
-      // Load existing cuisines for the venue
-      getVenueWithCuisines(venue.id).then((venueWithCuisines) => {
-        if (venueWithCuisines?.cuisines) {
-          form.setValue(
-            'cuisine_ids',
-            venueWithCuisines.cuisines.map((c) => c.id)
-          );
-        }
-      });
-    }
-  }, [open, venue, form]);
-
   const onSubmit = async (data: VenueFormData) => {
-    if (!venue) return;
+    if (!currentUserId) {
+        toast.error("Você precisa estar logado.");
+        return;
+    }
 
     setIsSubmitting(true);
     try {
-      await updateVenue(venue.id, data);
-      toast.success('Local atualizado com sucesso!');
+      await createVenue({
+        ...data,
+        created_by: currentUserId
+      });
+      toast.success('Local adicionado com sucesso!');
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
       console.error(error);
-      toast.error('Erro ao atualizar local.');
+      toast.error('Erro ao adicionar local.');
     } finally {
       setIsSubmitting(false);
     }
@@ -185,7 +181,7 @@ export function EditVenueModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Editar Local</DialogTitle>
+          <DialogTitle>Adicionar Novo Local</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -241,111 +237,78 @@ export function EditVenueModal({
                   <FormLabel>Culinária</FormLabel>
                   <div className="space-y-3 p-3 border rounded-md">
                     <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar ou adicionar culinária..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-8"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              if (filteredCuisines.length === 0 && searchQuery) {
-                                handleCreateCuisine();
-                              }
-                            }
-                          }}
-                        />
-                      </div>
-                      {searchQuery &&
-                        !availableCuisines.some(
-                          (c) =>
-                            c.name.toLowerCase() === searchQuery.toLowerCase().trim()
-                        ) && (
+                       <div className="relative flex-1">
+                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar ou adicionar culinária..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-8"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    if (filteredCuisines.length === 0 && searchQuery) handleCreateCuisine();
+                                }
+                            }}
+                          />
+                       </div>
+                       {searchQuery && !availableCuisines.some(c => c.name.toLowerCase() === searchQuery.toLowerCase().trim()) && (
                           <Button
-                            type="button"
-                            size="icon"
-                            variant="outline"
-                            onClick={handleCreateCuisine}
-                            disabled={isCreatingCuisine || !currentUserId}
-                            title={!currentUserId ? "Faça login para criar" : "Adicionar nova culinária"}
+                             type="button"
+                             size="icon"
+                             variant="outline"
+                             onClick={handleCreateCuisine}
+                             disabled={isCreatingCuisine || !currentUserId}
                           >
-                            {isCreatingCuisine ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Plus className="h-4 w-4" />
-                            )}
+                             {isCreatingCuisine ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                           </Button>
-                        )}
+                       )}
                     </div>
 
                     <div className="max-h-[150px] overflow-y-auto space-y-2 pr-1">
                       {isLoadingCuisines ? (
                         <div className="flex justify-center p-2">
-                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                         </div>
                       ) : (
                         filteredCuisines.map((cuisine) => (
-                          <div
-                            key={cuisine.id}
-                            className="flex items-center space-x-2 p-1 hover:bg-accent rounded"
-                          >
-                            <Checkbox
-                              id={`cuisine-${cuisine.id}`}
-                              checked={field.value?.includes(cuisine.id)}
-                              onCheckedChange={(checked) => {
-                                const current = field.value || [];
-                                if (checked) {
-                                  field.onChange([...current, cuisine.id]);
-                                } else {
-                                  field.onChange(
-                                    current.filter((id) => id !== cuisine.id)
-                                  );
-                                }
-                              }}
-                            />
-                            <Label
-                              htmlFor={`cuisine-${cuisine.id}`}
-                              className="flex-1 cursor-pointer text-sm font-normal"
-                            >
-                              {cuisine.name}
-                            </Label>
-                          </div>
+                           <div key={cuisine.id} className="flex items-center space-x-2 p-1 hover:bg-accent rounded">
+                             <Checkbox
+                                id={`new-cuisine-${cuisine.id}`}
+                                checked={field.value?.includes(cuisine.id)}
+                                onCheckedChange={(checked) => {
+                                    const current = field.value || [];
+                                    field.onChange(checked ? [...current, cuisine.id] : current.filter(id => id !== cuisine.id));
+                                }}
+                             />
+                             <Label htmlFor={`new-cuisine-${cuisine.id}`} className="flex-1 cursor-pointer text-sm font-normal">
+                                {cuisine.name}
+                             </Label>
+                           </div>
                         ))
                       )}
-                      
                       {!isLoadingCuisines && filteredCuisines.length === 0 && (
-                        <div className="text-center text-xs text-muted-foreground py-2">
-                          {searchQuery
-                            ? 'Nenhuma culinária encontrada'
-                            : 'Nenhuma culinária disponível'}
-                        </div>
+                          <div className="text-center text-xs text-muted-foreground py-2">
+                             {searchQuery ? 'Nenhuma culinária encontrada' : 'Nenhuma culinária disponível'}
+                          </div>
                       )}
                     </div>
-                    
-                    {/* Selected badges */}
+
                     {field.value && field.value.length > 0 && (
-                       <div className="flex flex-wrap gap-1 mt-2">
-                         {field.value.map(id => {
-                            const cuisine = availableCuisines.find(c => c.id === id);
-                            if (!cuisine) return null;
-                            return (
-                              <Badge key={id} variant="secondary" className="text-xs">
-                                {cuisine.name}
-                                <button
-                                  type="button"
-                                  className="ml-1 hover:text-destructive"
-                                  onClick={() => {
-                                     field.onChange(field.value?.filter(i => i !== id));
-                                  }}
-                                >
-                                  <X className="h-3 w-3" />
-                                </button>
-                              </Badge>
-                            );
-                         })}
-                       </div>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                           {field.value.map(id => {
+                              const cuisine = availableCuisines.find(c => c.id === id);
+                              if (!cuisine) return null;
+                              return (
+                                 <Badge key={id} variant="secondary" className="text-xs">
+                                    {cuisine.name}
+                                    <button type="button" className="ml-1 hover:text-destructive" onClick={() => field.onChange(field.value?.filter(i => i !== id))}>
+                                       <X className="h-3 w-3" />
+                                    </button>
+                                 </Badge>
+                              );
+                           })}
+                        </div>
                     )}
                   </div>
                   <FormMessage />
@@ -384,21 +347,11 @@ export function EditVenueModal({
             </div>
 
             <div className="flex gap-3 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="flex-1"
-                onClick={() => onOpenChange(false)}
-                disabled={isSubmitting}
-              >
+              <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
                 Cancelar
               </Button>
               <Button type="submit" className="flex-1" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'Salvar Alterações'
-                )}
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Adicionar Local'}
               </Button>
             </div>
           </form>
