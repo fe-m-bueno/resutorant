@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   Profile,
   Venue,
@@ -9,6 +10,7 @@ import type {
   ReviewWithVenue,
   VenueWithCuisines,
   ListWithItems,
+  CommentWithUser,
 } from '@/lib/types';
 import type { CreateLogFormData, ProfileFormData } from '@/lib/schemas';
 
@@ -214,16 +216,26 @@ export async function deleteVenue(venueId: string): Promise<void> {
 
 export async function getReviewsByUser(
   userId: string,
+  viewerId?: string,
 ): Promise<ReviewWithVenue[]> {
   const supabase = createClient();
 
-  const { data: reviews, error } = await supabase
+  let query = supabase
     .from('reviews')
     .select(
       '*, venue:venues(*, cuisines:venue_cuisines(cuisine:cuisine_types(*))), tags:review_tags(tag:tags(*)), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
     )
-    .eq('user_id', userId)
-    .order('visited_at', { ascending: false });
+    .eq('user_id', userId);
+
+  // Explicit privacy filter: if viewing someone else's profile, only show public reviews
+  // If viewing own profile (viewerId === userId), show all reviews
+  if (viewerId !== userId) {
+    query = query.eq('is_private', false);
+  }
+
+  const { data: reviews, error } = await query.order('visited_at', {
+    ascending: false,
+  });
 
   if (error) throw error;
   if (!reviews?.length) return [];
@@ -245,14 +257,24 @@ export async function getReviewsByUser(
 
 export async function getRecentReviews(
   limit: number,
+  viewerId?: string,
 ): Promise<ReviewWithVenue[]> {
   const supabase = createClient();
 
-  const { data: reviews, error } = await supabase
+  let query = supabase
     .from('reviews')
     .select(
       '*, venue:venues(*), tags:review_tags(tag:tags(*)), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
-    )
+    );
+
+  // Explicit privacy filter: only public reviews OR reviews by the viewer
+  if (viewerId) {
+    query = query.or(`is_private.eq.false,user_id.eq.${viewerId}`);
+  } else {
+    query = query.eq('is_private', false);
+  }
+
+  const { data: reviews, error } = await query
     .order('visited_at', { ascending: false })
     .limit(limit);
 
@@ -632,10 +654,11 @@ export async function getUserListsWithCounts(
 
 export async function getListDetails(
   listId: string,
+  viewerId?: string,
 ): Promise<ListWithItems | null> {
   const supabase = createClient();
 
-  const { data: list, error } = await supabase
+  let query = supabase
     .from('lists')
     .select(`
       *,
@@ -653,8 +676,16 @@ export async function getListDetails(
       ),
       author:profiles(*)
     `)
-    .eq('id', listId)
-    .single();
+    .eq('id', listId);
+
+  // Explicit privacy filter: only public lists OR lists owned by the viewer
+  if (viewerId) {
+    query = query.or(`is_public.eq.true,user_id.eq.${viewerId}`);
+  } else {
+    query = query.eq('is_public', true);
+  }
+
+  const { data: list, error } = await query.single();
 
   if (error) throw error;
   if (!list) return null;
@@ -664,18 +695,35 @@ export async function getListDetails(
       if (list.is_ordered) return (a.position || 0) - (b.position || 0);
       return new Date(b.added_at).getTime() - new Date(a.added_at).getTime();
     })
-    .map((item: any) => ({
-      ...item,
-      venue: item.venue ? {
-         ...item.venue,
-         cuisines: item.venue.cuisines?.map((c: any) => c.cuisine).filter(Boolean) || []
-      } : null,
-      review: item.review ? {
-        ...item.review,
-         tags: item.review.tags?.map((t: any) => t.tag).filter(Boolean) || [],
-         _count: { comments: item.review.comments?.[0]?.count || 0 },
-      } : null
-    }));
+    .map((item: any) => {
+      // Filter out private reviews from list items if viewer is not the review owner
+      let review = item.review;
+      if (review) {
+        const isReviewOwner = viewerId === review.user_id;
+        if (!isReviewOwner && review.is_private) {
+          review = null; // Hide private reviews from non-owners
+        } else {
+          review = {
+            ...review,
+            tags: review.tags?.map((t: any) => t.tag).filter(Boolean) || [],
+            _count: { comments: review.comments?.[0]?.count || 0 },
+          };
+        }
+      }
+
+      return {
+        ...item,
+        venue: item.venue
+          ? {
+              ...item.venue,
+              cuisines:
+                item.venue.cuisines?.map((c: any) => c.cuisine).filter(Boolean) ||
+                [],
+            }
+          : null,
+        review,
+      };
+    });
 
   return { ...list, items } as ListWithItems;
 }
@@ -884,16 +932,26 @@ export async function searchReviews(
   query: string,
   page = 1,
   limit = 20,
+  viewerId?: string,
 ): Promise<ReviewWithVenue[]> {
   const supabase = createClient();
   const offset = (page - 1) * limit;
 
   if (!query?.trim()) {
-      const { data: reviews, error } = await supabase
+    let dbQuery = supabase
       .from('reviews')
       .select(
         '*, venue:venues(*), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
-      )
+      );
+
+    // Explicit privacy filter: only public reviews OR reviews by the viewer
+    if (viewerId) {
+      dbQuery = dbQuery.or(`is_private.eq.false,user_id.eq.${viewerId}`);
+    } else {
+      dbQuery = dbQuery.eq('is_private', false);
+    }
+
+    const { data: reviews, error } = await dbQuery
       .order('visited_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -964,15 +1022,26 @@ export async function searchReviews(
     orConditions.push(`id.in.(${reviewIdsFromTags.join(',')})`);
   }
 
-  // 5. Search reviews
-  const { data: reviews, error } = await supabase
+  // 5. Search reviews with explicit privacy filter
+  // Note: We need to combine search conditions with privacy filter
+  // Since Supabase .or() overwrites previous .or(), we filter results after query
+  let reviewsQuery = supabase
     .from('reviews')
     .select(
       '*, venue:venues(*), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)',
     )
-    .or(orConditions.join(','))
+    .or(orConditions.join(','));
+
+  const { data: allReviews, error } = await reviewsQuery
     .order('visited_at', { ascending: false })
     .range(offset, offset + limit - 1);
+
+  if (error) throw error;
+
+  // Explicit privacy filter: filter out private reviews unless viewer is the owner
+  const reviews = (allReviews || []).filter(
+    (review) => !review.is_private || (viewerId && review.user_id === viewerId),
+  );
 
   if (error) throw error;
 
@@ -1104,82 +1173,187 @@ export async function toggleLike(
 // ACCOUNT DELETION
 // ============================================================================
 
-export async function deleteAccount(userId: string): Promise<void> {
-  const supabase = createClient();
-
+export async function deleteAccount(
+  userId: string,
+  supabase: SupabaseClient,
+): Promise<void> {
   // Delete in correct order to respect foreign key constraints
-  // 1. Delete likes
-  await supabase.from('likes').delete().eq('user_id', userId);
+  // 1. Delete comment likes (must be before comments)
+  const { error: commentLikesError } = await supabase
+    .from('comment_likes')
+    .delete()
+    .eq('user_id', userId);
+  if (commentLikesError) throw commentLikesError;
 
-  // 2. Delete review tags and reviews
-  const { data: reviews } = await supabase
+  // 2. Delete comments (must be before reviews)
+  const { error: commentsError } = await supabase
+    .from('comments')
+    .delete()
+    .eq('user_id', userId);
+  if (commentsError) throw commentsError;
+
+  // 3. Delete likes
+  const { error: likesError } = await supabase
+    .from('likes')
+    .delete()
+    .eq('user_id', userId);
+  if (likesError) throw likesError;
+
+  // 4. Delete review tags, photos, comments and reviews
+  const { data: reviews, error: reviewsSelectError } = await supabase
     .from('reviews')
     .select('id')
     .eq('user_id', userId);
+  if (reviewsSelectError) throw reviewsSelectError;
+
   if (reviews?.length) {
-    await supabase
+    const reviewIds = reviews.map((r) => r.id);
+
+    // Delete comment likes for comments on user's reviews
+    const { data: commentsOnReviews } = await supabase
+      .from('comments')
+      .select('id')
+      .in('log_id', reviewIds);
+    
+    if (commentsOnReviews?.length) {
+      const { error: commentLikesOnReviewsError } = await supabase
+        .from('comment_likes')
+        .delete()
+        .in(
+          'comment_id',
+          commentsOnReviews.map((c) => c.id),
+        );
+      if (commentLikesOnReviewsError) throw commentLikesOnReviewsError;
+    }
+
+    // Delete comments on user's reviews
+    const { error: commentsOnReviewsError } = await supabase
+      .from('comments')
+      .delete()
+      .in('log_id', reviewIds);
+    if (commentsOnReviewsError) throw commentsOnReviewsError;
+
+    const { error: reviewTagsError } = await supabase
       .from('review_tags')
       .delete()
-      .in(
-        'review_id',
-        reviews.map((r) => r.id),
-      );
-    await supabase
+      .in('review_id', reviewIds);
+    if (reviewTagsError) throw reviewTagsError;
+
+    const { error: reviewPhotosError } = await supabase
       .from('review_photos')
       .delete()
-      .in(
-        'review_id',
-        reviews.map((r) => r.id),
-      );
+      .in('review_id', reviewIds);
+    if (reviewPhotosError) throw reviewPhotosError;
   }
-  await supabase.from('reviews').delete().eq('user_id', userId);
 
-  // 3. Delete list venues and lists
-  const { data: lists } = await supabase
+  const { error: reviewsDeleteError } = await supabase
+    .from('reviews')
+    .delete()
+    .eq('user_id', userId);
+  if (reviewsDeleteError) throw reviewsDeleteError;
+
+  // 5. Delete user venue plans
+  const { error: venuePlansError } = await supabase
+    .from('user_venue_plans')
+    .delete()
+    .eq('user_id', userId);
+  if (venuePlansError) throw venuePlansError;
+
+  // 6. Delete list items and lists
+  const { data: lists, error: listsSelectError } = await supabase
     .from('lists')
     .select('id')
     .eq('user_id', userId);
+  if (listsSelectError) throw listsSelectError;
+
   if (lists?.length) {
-    await supabase
+    const { error: listItemsError } = await supabase
       .from('list_items')
       .delete()
       .in(
         'list_id',
         lists.map((l) => l.id),
       );
+    if (listItemsError) throw listItemsError;
   }
-  await supabase.from('lists').delete().eq('user_id', userId);
 
-  // 4. Delete user-created venues and their relationships
-  const { data: venues } = await supabase
+  const { error: listsDeleteError } = await supabase
+    .from('lists')
+    .delete()
+    .eq('user_id', userId);
+  if (listsDeleteError) throw listsDeleteError;
+
+  // 7. Delete user-created venues and their relationships
+  const { data: venues, error: venuesSelectError } = await supabase
     .from('venues')
     .select('id')
     .eq('created_by', userId);
+  if (venuesSelectError) throw venuesSelectError;
+
   if (venues?.length) {
-    await supabase
+    const { error: venueCuisinesError } = await supabase
       .from('venue_cuisines')
       .delete()
       .in(
         'venue_id',
         venues.map((v) => v.id),
       );
+    if (venueCuisinesError) throw venueCuisinesError;
   }
-  await supabase.from('venues').delete().eq('created_by', userId);
 
-  // 5. Delete user-created tags and cuisine types
-  await supabase.from('tags').delete().eq('created_by', userId);
-  await supabase.from('cuisine_types').delete().eq('created_by', userId);
+  const { error: venuesDeleteError } = await supabase
+    .from('venues')
+    .delete()
+    .eq('created_by', userId);
+  if (venuesDeleteError) throw venuesDeleteError;
 
-  // 6. Delete profile
-  await supabase.from('profiles').delete().eq('id', userId);
+  // 8. Delete user-created tags and cuisine types
+  const { error: tagsError } = await supabase
+    .from('tags')
+    .delete()
+    .eq('created_by', userId);
+  if (tagsError) throw tagsError;
+
+  const { error: cuisineTypesError } = await supabase
+    .from('cuisine_types')
+    .delete()
+    .eq('created_by', userId);
+  if (cuisineTypesError) throw cuisineTypesError;
+
+  // 9. Delete profile
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', userId);
+  if (profileError) throw profileError;
 }
 
 // ============================================================================
 // COMMENTS
 // ============================================================================
 
-export async function getComments(logId: string) {
+export async function getComments(
+  logId: string,
+  viewerId?: string,
+): Promise<CommentWithUser[]> {
   const supabase = createClient();
+
+  // First, check if the review is public or owned by viewer
+  const { data: review, error: reviewError } = await supabase
+    .from('reviews')
+    .select('is_private, user_id')
+    .eq('id', logId)
+    .single();
+
+  if (reviewError) throw reviewError;
+
+  // Explicit privacy check: only show comments if review is public OR viewer owns it
+  const canView =
+    !review.is_private || (viewerId && review.user_id === viewerId);
+
+  if (!canView) {
+    return []; // Return empty array if viewer cannot access the review
+  }
 
   const { data: comments, error } = await supabase
     .from('comments')
@@ -1189,7 +1363,7 @@ export async function getComments(logId: string) {
 
   if (error) throw error;
 
-  return comments || [];
+  return (comments || []) as CommentWithUser[];
 }
 
 export async function searchVenuesWithFilters(

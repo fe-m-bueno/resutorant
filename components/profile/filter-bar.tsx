@@ -1039,10 +1039,11 @@ export function FilterBarSkeleton() {
         <div className="w-10 shrink-0 hidden sm:flex" />
       </div>
       <div className="hidden sm:flex gap-2 overflow-x-auto pb-4 items-center h-12">
-        <Skeleton className="h-8 w-24 rounded-md" />
-        <Skeleton className="h-8 w-24 rounded-md" />
-        <Skeleton className="h-8 w-28 rounded-md" />
-        <Skeleton className="h-8 w-28 rounded-md" />
+        <Skeleton className="h-8 w-[70px] sm:min-w-[90px] rounded-md" />
+        <Skeleton className="h-8 w-[70px] sm:min-w-[90px] rounded-md" />
+        <Skeleton className="h-8 w-[80px] sm:min-w-[100px] rounded-md" />
+        <Skeleton className="h-8 w-[80px] sm:min-w-[100px] rounded-md" />
+        <Skeleton className="h-8 w-[80px] sm:min-w-[100px] rounded-md" />
       </div>
     </div>
   );

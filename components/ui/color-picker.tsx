@@ -146,21 +146,37 @@ export function ColorPicker({ value, onChange, className }: ColorPickerProps) {
     setHsv(hexToHsv(value));
   }, [value]);
 
-  const handleHueChange = (e: React.MouseEvent | React.TouchEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+  const handleHueChange = (
+    e: React.MouseEvent | React.TouchEvent | MouseEvent,
+    container?: HTMLElement,
+  ) => {
+    const rect = (
+      container || (e.currentTarget as Element)
+    ).getBoundingClientRect();
     const x =
-      'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+      'touches' in e
+        ? (e as unknown as React.TouchEvent).touches[0].clientX
+        : (e as React.MouseEvent | MouseEvent).clientX;
     const hue = Math.min(Math.max(0, (x - rect.left) / rect.width), 1) * 360;
     const newHex = hsvToHex(hue, hsv.s, hsv.v);
     onChange(newHex);
   };
 
-  const handleSvChange = (e: React.MouseEvent | React.TouchEvent) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+  const handleSvChange = (
+    e: React.MouseEvent | React.TouchEvent | MouseEvent,
+    container?: HTMLElement,
+  ) => {
+    const rect = (
+      container || (e.currentTarget as Element)
+    ).getBoundingClientRect();
     const x =
-      'touches' in e ? e.touches[0].clientX : (e as React.MouseEvent).clientX;
+      'touches' in e
+        ? (e as unknown as React.TouchEvent).touches[0].clientX
+        : (e as React.MouseEvent | MouseEvent).clientX;
     const y =
-      'touches' in e ? e.touches[0].clientY : (e as React.MouseEvent).clientY;
+      'touches' in e
+        ? (e as unknown as React.TouchEvent).touches[0].clientY
+        : (e as React.MouseEvent | MouseEvent).clientY;
 
     const s = Math.min(Math.max(0, (x - rect.left) / rect.width), 1) * 100;
     const v = Math.min(Math.max(0, 1 - (y - rect.top) / rect.height), 1) * 100;
@@ -177,11 +193,11 @@ export function ColorPicker({ value, onChange, className }: ColorPickerProps) {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDraggingSv) {
         const el = document.getElementById('sv-picker');
-        if (el) handleSvChange(e as any);
+        if (el) handleSvChange(e, el);
       }
       if (isDraggingHue) {
         const el = document.getElementById('hue-picker');
-        if (el) handleHueChange(e as any);
+        if (el) handleHueChange(e, el);
       }
     };
 

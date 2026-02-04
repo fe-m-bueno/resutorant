@@ -4,16 +4,15 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { AddLogModal } from '@/components/add-log-modal';
-import { BottomNav } from '@/components/bottom-nav';
 import { useProfileData } from '@/hooks/use-profile-data';
 import { useQueryClient } from '@tanstack/react-query';
 import { ProfileView } from '@/components/profile/profile-view';
 import type { ReviewWithVenue } from '@/lib/types';
+import { AddLogModal } from '@/components/add-log-modal';
 
 export default function ProfilePage() {
-  const { profile, reviews, lists, plannedVenues, isLoading } = useProfileData();
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { profile, reviews, lists, plannedVenues, isLoading } =
+    useProfileData();
   const [editingLog, setEditingLog] = useState<ReviewWithVenue | undefined>(
     undefined,
   );
@@ -33,12 +32,11 @@ export default function ProfilePage() {
     } else {
       setEditingLog(log);
     }
-    setIsModalOpen(true);
   };
 
   const header = (
-    <header className="sticky top-0 z-40 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-4 sm:px-6">
+    <header className="sticky top-0 z-40 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 sm:px-8">
+      <div className="mx-auto max-w-6xl flex h-full items-center justify-between">
         <h1 className="text-lg font-semibold">Perfil</h1>
         <Link href="/settings">
           <Button variant="ghost" size="icon">
@@ -64,22 +62,16 @@ export default function ProfilePage() {
         currentUserProfile={profile}
       />
 
-      <BottomNav
-        onAddClick={() => {
-          setEditingLog(undefined);
-          setIsModalOpen(true);
-        }}
-      />
-
-      <AddLogModal
-        open={isModalOpen}
-        onOpenChange={(val) => {
-          setIsModalOpen(val);
-          if (!val) setEditingLog(undefined);
-        }}
-        onSuccess={handleSuccess}
-        logToEdit={editingLog}
-      />
+      {editingLog && (
+        <AddLogModal
+          open={!!editingLog}
+          onOpenChange={(val: boolean) => {
+            if (!val) setEditingLog(undefined);
+          }}
+          onSuccess={handleSuccess}
+          logToEdit={editingLog}
+        />
+      )}
     </>
   );
 }

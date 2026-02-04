@@ -7,6 +7,7 @@ import {
   List as ListIcon,
   User,
   Shield,
+  Moon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -28,6 +29,7 @@ const items: SidebarItem[] = [
   { id: 'tags', label: 'Tags', icon: Tag },
   { id: 'cuisines', label: 'Culinárias', icon: Utensils },
   { id: 'lists', label: 'Listas', icon: ListIcon },
+  { id: 'appearance', label: 'Aparência', icon: Moon },
   { id: 'security', label: 'Segurança e Privacidade', icon: Shield },
 ];
 

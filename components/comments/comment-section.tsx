@@ -27,8 +27,8 @@ export function CommentSection({
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['comments', logId],
-    queryFn: () => getComments(logId),
+    queryKey: ['comments', logId, currentUserId],
+    queryFn: () => getComments(logId, currentUserId),
     refetchInterval: 1000 * 60, // Refresh every minute
   });
 

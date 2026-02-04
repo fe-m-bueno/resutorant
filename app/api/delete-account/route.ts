@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service"
 import { deleteAccount } from "@/lib/queries"
 import { NextResponse } from "next/server"
+import { deleteAccountSuccessSchema, deleteAccountErrorSchema } from "./schemas"
 
 export async function POST() {
   try {
@@ -8,11 +9,12 @@ export async function POST() {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     
     if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+      const errorResponse = deleteAccountErrorSchema.parse({ error: "Unauthorized" })
+      return NextResponse.json(errorResponse, { status: 401 })
     }
     
-    // Delete all user data
-    await deleteAccount(user.id)
+    // Delete all user data using service role client (bypasses RLS)
+    await deleteAccount(user.id, supabase)
     
     // Delete auth user
     const { error: deleteError } = await supabase.auth.admin.deleteUser(user.id)
@@ -21,12 +23,12 @@ export async function POST() {
       throw deleteError
     }
     
-    return NextResponse.json({ success: true })
+    const successResponse = deleteAccountSuccessSchema.parse({ success: true })
+    return NextResponse.json(successResponse)
   } catch (error) {
     console.error("Account deletion error:", error)
-    return NextResponse.json(
-      { error: "Failed to delete account" }, 
-      { status: 500 }
-    )
+    const errorMessage = error instanceof Error ? error.message : "Failed to delete account"
+    const errorResponse = deleteAccountErrorSchema.parse({ error: errorMessage })
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }

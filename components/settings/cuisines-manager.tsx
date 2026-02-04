@@ -138,20 +138,32 @@ export function CuisinesManager() {
     return (
       <div className="space-y-6">
         <div className="space-y-4 rounded-lg border p-4">
-            <Skeleton className="h-8 w-40 mb-4" />
-            <div className="flex gap-4">
-                <Skeleton className="h-10 flex-1" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-10" />
-            </div>
+          <Skeleton className="h-6 w-40 mb-4 rounded" />
+          <div className="flex flex-col md:flex-row gap-4">
+            <Skeleton className="h-10 flex-1 rounded" />
+            <Skeleton className="h-10 w-full md:w-32 rounded" />
+            <Skeleton className="h-10 w-10 shrink-0 rounded" />
+          </div>
         </div>
-        <div className="space-y-2">
-            <Skeleton className="h-8 w-40" />
-            <div className="grid gap-2">
-                {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-14 w-full rounded-lg" />
-                ))}
-            </div>
+        <div className="space-y-4">
+          <Skeleton className="h-6 w-40 rounded" />
+          <div className="grid gap-2">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between rounded-lg border p-3 bg-card"
+              >
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-5 w-5 rounded" />
+                  <Skeleton className="h-5 w-32 rounded" />
+                </div>
+                <div className="flex gap-2">
+                  <Skeleton className="h-9 w-9 rounded-md" />
+                  <Skeleton className="h-9 w-9 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );

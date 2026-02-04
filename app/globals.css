@@ -99,13 +99,37 @@
     --chart-4: 48 75% 55%;
     --chart-5: 8 65% 58%;
   }
+
+  /* GREEN THEME - LIGHT */
+  [data-theme='green'] {
+    --primary: 140 52% 45%; /* Emerald adjusted for contrast */
+    --primary-foreground: 0 0% 100%;
+    --ring: 140 52% 45%;
+    --chart-1: 140 52% 45%;
+    --chart-2: 158 64% 42%;
+    --chart-3: 140 40% 30%;
+    --chart-4: 160 50% 45%;
+    --chart-5: 145 45% 40%;
+  }
+
+  /* GREEN THEME - DARK */
+  .dark[data-theme='green'],
+  [data-theme='green'] .dark {
+    --primary: 140 52% 55%; /* Diamond Emerald */
+    --primary-foreground: 140 80% 5%;
+    --ring: 140 52% 55%;
+    --chart-1: 140 52% 55%;
+    --chart-2: 158 64% 52%;
+    --chart-3: 140 40% 40%;
+    --chart-4: 160 50% 55%;
+    --chart-5: 145 45% 50%;
+  }
 }
 
 @layer base {
   * {
     @apply border-border;
   }
-
 
   body {
     @apply bg-background text-foreground antialiased;

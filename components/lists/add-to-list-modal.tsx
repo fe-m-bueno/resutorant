@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { Search, Plus, MapPin, MessageSquare, Star, Check } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 import {
   Dialog,
   DialogContent,
@@ -51,6 +52,7 @@ export function AddToListModal({ listId, open, onOpenChange, onSuccess }: AddToL
   const [results, setResults] = useState<{ venues: Venue[], reviews: ReviewWithVenue[] }>({ venues: [], reviews: [] })
   const [loading, setLoading] = useState(false)
   const [addingId, setAddingId] = useState<string | null>(null)
+  const [viewerId, setViewerId] = useState<string | undefined>(undefined)
   
   // Pagination state
   const [page, setPage] = useState(1)
@@ -58,6 +60,19 @@ export function AddToListModal({ listId, open, onOpenChange, onSuccess }: AddToL
   const limit = 20
 
   const observerTarget = useRef<HTMLDivElement>(null)
+
+  // Get current user ID on mount
+  useEffect(() => {
+    async function getUserId() {
+      const { createClient } = await import('@/lib/supabase/client')
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setViewerId(user?.id)
+    }
+    if (open) {
+      getUserId()
+    }
+  }, [open])
 
   const performSearch = async (query: string, tab: string, pageNum: number) => {
     // Removed empty query check to allow initial load
@@ -71,7 +86,7 @@ export function AddToListModal({ listId, open, onOpenChange, onSuccess }: AddToL
             }))
             setHasMore(data.length === limit)
         } else {
-            const data = await searchReviews(query, pageNum, limit)
+            const data = await searchReviews(query, pageNum, limit, viewerId)
             setResults(prev => ({
                 ...prev,
                 reviews: pageNum === 1 ? data : [...prev.reviews, ...data]

@@ -5,11 +5,14 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ProfileView } from '@/components/profile/profile-view';
-import { usePublicProfile, useUser, useProfile } from '@/hooks/use-profile-data';
+import {
+  usePublicProfile,
+  useUser,
+  useProfile,
+} from '@/hooks/use-profile-data';
 import { notFound } from 'next/navigation';
-import { BottomNav } from '@/components/bottom-nav';
-import { AddLogModal } from '@/components/add-log-modal';
 import { useQueryClient } from '@tanstack/react-query';
+import { AddLogModal } from '@/components/add-log-modal';
 
 interface UserProfilePageProps {
   params: Promise<{
@@ -35,9 +38,14 @@ export default function UserProfilePage(props: UserProfilePageProps) {
   // If we are here, it means it matched [username], so we should check if it is intended as a profile route
   const isProfileRoute = decodedUsername.startsWith('@');
 
-  const { profile, reviews, lists, plannedVenues, isLoading, notFound: profileNotFound } = usePublicProfile(
-    isProfileRoute ? decodedUsername : ''
-  );
+  const {
+    profile,
+    reviews,
+    lists,
+    plannedVenues,
+    isLoading,
+    notFound: profileNotFound,
+  } = usePublicProfile(isProfileRoute ? decodedUsername : '');
 
   useEffect(() => {
     // If it doesn't look like a profile route (no @), or if profile is not found after loading
@@ -50,8 +58,8 @@ export default function UserProfilePage(props: UserProfilePageProps) {
   }, [isProfileRoute]);
 
   if (!isProfileRoute) {
-     notFound();
-     return null;
+    notFound();
+    return null;
   }
 
   if (profileNotFound) {
@@ -64,8 +72,8 @@ export default function UserProfilePage(props: UserProfilePageProps) {
   }
 
   const header = (
-    <header className="sticky top-0 z-40 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-      <div className="mx-auto flex h-full max-w-6xl items-center gap-4 px-4 sm:px-6">
+    <header className="sticky top-0 z-40 h-16 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 px-4 sm:px-8">
+      <div className="mx-auto max-w-6xl flex h-full items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -82,11 +90,11 @@ export default function UserProfilePage(props: UserProfilePageProps) {
   const isOwnProfile = currentUser?.id === profile?.id;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const handleAddClick = () => {
     // If not logged in, maybe redirect or show auth modal?
     // For now, we open the modal which might handle its own auth state or fail gracefully
-    setIsModalOpen(true); 
+    setIsModalOpen(true);
   };
 
   return (
@@ -102,12 +110,12 @@ export default function UserProfilePage(props: UserProfilePageProps) {
         header={header}
         currentUserProfile={currentUserProfile}
       />
-      <BottomNav onAddClick={handleAddClick} />
       <AddLogModal
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         onSuccess={() => {
-           // We might want to refetch reviews if we added one on our own profile
+          // We might want to refetch reviews if we added one on our own profile
+          handleRefresh();
         }}
       />
     </>

@@ -17,14 +17,19 @@ export async function getVenueBySlug(slug: string): Promise<VenueWithCuisines | 
   } as VenueWithCuisines;
 }
 
-export async function getVenueStats(venueId: string) {
+export async function getVenueStats(venueId: string, viewerId?: string) {
   const supabase = await createClient();
   
-  // Get ratings and count
-  const { data: reviews, error } = await supabase
-    .from('reviews')
-    .select('rating')
-    .eq('venue_id', venueId);
+  // Get ratings and count - only count public reviews OR reviews by viewer
+  let query = supabase.from('reviews').select('rating').eq('venue_id', venueId);
+  
+  if (viewerId) {
+    query = query.or(`is_private.eq.false,user_id.eq.${viewerId}`);
+  } else {
+    query = query.eq('is_private', false);
+  }
+  
+  const { data: reviews, error } = await query;
     
   if (error) throw error;
   
@@ -56,15 +61,29 @@ export async function getVenueStats(venueId: string) {
   };
 }
 
-export async function getVenueReviews(venueId: string): Promise<ReviewWithVenue[]> {
+export async function getVenueReviews(
+  venueId: string,
+  viewerId?: string,
+): Promise<ReviewWithVenue[]> {
   const supabase = await createClient();
-  const { data: reviews, error } = await supabase
+  
+  let query = supabase
     .from('reviews')
     .select(
       '*, venue:venues(*, cuisines:venue_cuisines(cuisine:cuisine_types(*))), tags:review_tags(tag:tags(*)), likes(user_id, user:profiles(username)), comments(count), author:profiles(*)'
     )
-    .eq('venue_id', venueId)
-    .order('visited_at', { ascending: false });
+    .eq('venue_id', venueId);
+
+  // Explicit privacy filter: only public reviews OR reviews by the viewer
+  if (viewerId) {
+    query = query.or(`is_private.eq.false,user_id.eq.${viewerId}`);
+  } else {
+    query = query.eq('is_private', false);
+  }
+
+  const { data: reviews, error } = await query.order('visited_at', {
+    ascending: false,
+  });
     
   if (error) throw error;
   

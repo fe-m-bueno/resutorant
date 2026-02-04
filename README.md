@@ -1,109 +1,110 @@
-<a href="https://demo-nextjs-with-supabase.vercel.app/">
-  <img alt="Next.js and Supabase Starter Kit - the fastest way to build apps with Next.js and Supabase" src="https://demo-nextjs-with-supabase.vercel.app/opengraph-image.png">
-  <h1 align="center">Next.js and Supabase Starter Kit</h1>
-</a>
+# Resutorant
 
-<p align="center">
- The fastest way to build apps with Next.js and Supabase
-</p>
+Plataforma de avaliacao e planejamento gastronomico pessoal.
 
-<p align="center">
-  <a href="#features"><strong>Features</strong></a> ·
-  <a href="#demo"><strong>Demo</strong></a> ·
-  <a href="#deploy-to-vercel"><strong>Deploy to Vercel</strong></a> ·
-  <a href="#clone-and-run-locally"><strong>Clone and run locally</strong></a> ·
-  <a href="#feedback-and-issues"><strong>Feedback and issues</strong></a>
-  <a href="#more-supabase-examples"><strong>More Examples</strong></a>
-</p>
-<br/>
+Este projeto permite aos usuarios registrar suas experiencias em restaurantes, criar listas de lugares para visitar e visualizar estatisticas detalhadas sobre seus habitos gastronomicos.
 
-## Features
+## Visao Geral
 
-- Works across the entire [Next.js](https://nextjs.org) stack
-  - App Router
-  - Pages Router
-  - Proxy
-  - Client
-  - Server
-  - It just works!
-- supabase-ssr. A package to configure Supabase Auth to use cookies
-- Password-based authentication block installed via the [Supabase UI Library](https://supabase.com/ui/docs/nextjs/password-based-auth)
-- Styling with [Tailwind CSS](https://tailwindcss.com)
-- Components with [shadcn/ui](https://ui.shadcn.com/)
-- Optional deployment with [Supabase Vercel Integration and Vercel deploy](#deploy-your-own)
-  - Environment variables automatically assigned to Vercel project
+O Resutorant e uma aplicacao web moderna construida com Next.js, desenhada para ser uma ferramenta pessoal robusta para foodies e entusiastas da gastronomia. Oferece uma interface rica e responsiva para gerenciar memorias culinarias.
 
-## Demo
+## Funcionalidades Principais
 
-You can view a fully working demo at [demo-nextjs-with-supabase.vercel.app](https://demo-nextjs-with-supabase.vercel.app/).
+- **Dashboard:** Visao geral das ultimas atividades e metricas rapidas.
+- **Avaliacoes Detalhadas:** Registre notas, precos, datas e tags personalizadas para cada visita.
+- **Listas e Planejamento:** Organize restaurantes em listas (ex: "Melhores Burger", "Jantar Romantico") e mantenha uma lista de "Planejo Ir".
+- **Busca Avancada:** Encontre rapidamente restaurantes ja visitados ou salvos.
+- **Perfil e Estatisticas:** Analise seus habitos com graficos interativos e historico completo.
+- **Configuracoes Personalizaveis:** Gerencie tags, cozinhas e preferencias da conta.
+- **Autenticacao Segura:** Sistema de login robusto e seguro via Supabase.
 
-## Deploy to Vercel
+## Stack Tecnologico
 
-Vercel deployment will guide you through creating a Supabase account and project.
+- **Framework:** Next.js (App Router)
+- **Linguagem:** TypeScript
+- **Estilizacao:** Tailwind CSS
+- **Componentes UI:** Radix UI, Lucide React
+- **Animacoes:** Framer Motion
+- **Gerenciamento de Estado/Dados:** TanStack Query (React Query)
+- **Formularios:** React Hook Form, Zod
+- **Graficos:** Recharts
+- **Backend & Banco de Dados:** Supabase
+- **Utilitarios:** date-fns, clsx, tailwind-merge
 
-After installation of the Supabase integration, all relevant environment variables will be assigned to the project so the deployment is fully functioning.
+## Capturas de Tela
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&project-name=nextjs-with-supabase&repository-name=nextjs-with-supabase&demo-title=nextjs-with-supabase&demo-description=This+starter+configures+Supabase+Auth+to+use+cookies%2C+making+the+user%27s+session+available+throughout+the+entire+Next.js+app+-+Client+Components%2C+Server+Components%2C+Route+Handlers%2C+Server+Actions+and+Middleware.&demo-url=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2F&external-id=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-supabase&demo-image=https%3A%2F%2Fdemo-nextjs-with-supabase.vercel.app%2Fopengraph-image.png)
+### Dashboard
 
-The above will also clone the Starter kit to your GitHub, you can clone that locally and develop locally.
+![Dashboard](screenshots/dashboard.png)
 
-If you wish to just develop locally and not deploy to Vercel, [follow the steps below](#clone-and-run-locally).
+### Perfil do Usuario
 
-## Clone and run locally
+![Perfil](screenshots/profile.png)
 
-1. You'll first need a Supabase project which can be made [via the Supabase dashboard](https://database.new)
+### Listas
 
-2. Create a Next.js app using the Supabase Starter template npx command
+![Listas](screenshots/lists.png)
 
-   ```bash
-   npx create-next-app --example with-supabase with-supabase-app
-   ```
+### Planejamento
 
-   ```bash
-   yarn create next-app --example with-supabase with-supabase-app
-   ```
+![Planejado](screenshots/planned.png)
 
-   ```bash
-   pnpm create next-app --example with-supabase with-supabase-app
-   ```
+### Busca
 
-3. Use `cd` to change into the app's directory
+![Busca](screenshots/search.png)
 
-   ```bash
-   cd with-supabase-app
-   ```
+### Configuracoes
 
-4. Rename `.env.example` to `.env.local` and update the following:
+![Configuracoes](screenshots/settings.png)
 
-  ```env
-  NEXT_PUBLIC_SUPABASE_URL=[INSERT SUPABASE PROJECT URL]
-  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=[INSERT SUPABASE PROJECT API PUBLISHABLE OR ANON KEY]
-  ```
-  > [!NOTE]
-  > This example uses `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, which refers to Supabase's new **publishable** key format.
-  > Both legacy **anon** keys and new **publishable** keys can be used with this variable name during the transition period. Supabase's dashboard may show `NEXT_PUBLIC_SUPABASE_ANON_KEY`; its value can be used in this example.
-  > See the [full announcement](https://github.com/orgs/supabase/discussions/29260) for more information.
+## Como Iniciar
 
-  Both `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` can be found in [your Supabase project's API settings](https://supabase.com/dashboard/project/_?showConnect=true)
+Siga estas instrucoes para configurar o projeto localmente.
 
-5. You can now run the Next.js local development server:
+### Pre-requisitos
 
-   ```bash
-   npm run dev
-   ```
+- Node.js (versao LTS recomendada)
+- npm ou yarn
 
-   The starter kit should now be running on [localhost:3000](http://localhost:3000/).
+### Instalacao
 
-6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
+1.  Clone o repositorio:
 
-> Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
+    ```bash
+    git clone https://github.com/seu-usuario/resutorant.git
+    cd resutorant
+    ```
 
-## Feedback and issues
+2.  Instale as dependencias:
 
-Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).
+    ```bash
+    npm install
+    ```
 
-## More Supabase examples
+3.  Configure as variaveis de ambiente:
+    Crie um arquivo `.env.local` na raiz do projeto e adicione as chaves do Supabase:
 
-- [Next.js Subscription Payments Starter](https://github.com/vercel/nextjs-subscription-payments)
-- [Cookie-based Auth and the Next.js 13 App Router (free course)](https://youtube.com/playlist?list=PL5S4mPUpp4OtMhpnp93EFSo42iQ40XjbF)
-- [Supabase Auth and the Next.js App Router](https://github.com/supabase/supabase/tree/master/examples/auth/nextjs)
+    ```env
+    NEXT_PUBLIC_SUPABASE_URL=sua_url_supabase
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anonima
+    ```
+
+4.  Inicie o servidor de desenvolvimento:
+
+    ```bash
+    npm run dev
+    ```
+
+5.  Acesse a aplicacao em `http://localhost:3000`.
+
+## Estrutura do Projeto
+
+- `/app`: Rotas e paginas da aplicacao (Next.js App Router).
+- `/components`: Componentes reutilizaveis de UI.
+- `/lib`: Funcoes utilitarias, hooks e configuracoes.
+- `/public`: Arquivos estaticos.
+- `/screenshots`: Imagens utilizadas neste README.
+
+---
+
+Desenvolvido por Felipe Bueno.

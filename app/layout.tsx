@@ -3,6 +3,7 @@ import { Geist } from 'next/font/google';
 import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/toaster';
 import { QueryProvider } from '@/components/providers/query-provider';
+import { ColorThemeProvider } from '@/components/providers/color-theme-provider';
 import './globals.css';
 
 const defaultUrl = process.env.VERCEL_URL
@@ -14,6 +15,21 @@ export const metadata: Metadata = {
   title: 'Resutorant - Seu Diário Gastronômico',
   description:
     'Registre suas experiências em restaurantes, cafés e bares. Avalie, organize e compartilhe suas descobertas gastronômicas.',
+  openGraph: {
+    title: 'Resutorant - Seu Diário Gastronômico',
+    description:
+      'Registre suas experiências em restaurantes, cafés e bares. Avalie, organize e compartilhe suas descobertas gastronômicas.',
+    url: defaultUrl,
+    siteName: 'Resutorant',
+    locale: 'pt_BR',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Resutorant - Seu Diário Gastronômico',
+    description:
+      'Registre suas experiências em restaurantes, cafés e bares. Avalie, organize e compartilhe suas descobertas gastronômicas.',
+  },
 };
 
 const geistSans = Geist({
@@ -36,10 +52,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <QueryProvider>
-            {children}
-            <Toaster position="top-center" richColors closeButton />
-          </QueryProvider>
+          <ColorThemeProvider>
+            <QueryProvider>
+              {children}
+              <Toaster position="top-center" richColors closeButton />
+            </QueryProvider>
+          </ColorThemeProvider>
         </ThemeProvider>
       </body>
     </html>

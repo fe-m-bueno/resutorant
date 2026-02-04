@@ -30,12 +30,15 @@ export function useProfile(userId: string | undefined) {
   });
 }
 
-export function useUserReviews(userId: string | undefined) {
+export function useUserReviews(
+  userId: string | undefined,
+  viewerId?: string,
+) {
   return useQuery({
-    queryKey: ['reviews', userId],
+    queryKey: ['reviews', userId, viewerId],
     queryFn: async () => {
       if (!userId) return [];
-      return getReviewsByUser(userId);
+      return getReviewsByUser(userId, viewerId);
     },
     enabled: !!userId,
   });
@@ -86,12 +89,15 @@ export function usePublicProfile(username: string) {
     enabled: !!username,
   });
 
+  // Get current user ID for privacy filtering
+  const { data: currentUser } = useUser();
+
   // 2. Fetch Reviews for that user (only if profile found)
   const { data: reviews, isLoading: isReviewsLoading } = useQuery({
-    queryKey: ['reviews', profile?.id],
+    queryKey: ['reviews', profile?.id, currentUser?.id],
     queryFn: async () => {
       if (!profile?.id) return [];
-      return getReviewsByUser(profile.id);
+      return getReviewsByUser(profile.id, currentUser?.id);
     },
     enabled: !!profile?.id,
   });
@@ -134,6 +140,7 @@ export function useProfileData() {
   const { data: profile, isLoading: isProfileLoading } = useProfile(user?.id);
   const { data: reviews, isLoading: isReviewsLoading } = useUserReviews(
     user?.id,
+    user?.id, // Pass user.id as viewerId to see own private reviews
   );
   const { data: lists, isLoading: isListsLoading } = useUserLists(user?.id, {
     includePrivate: true,

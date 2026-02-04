@@ -2,46 +2,28 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
-import { ChefHat, Settings, LogOut, User } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useQueryClient } from '@tanstack/react-query';
+
+import Link from 'next/link';
+import { ChefHat } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ReviewCard, ReviewCardSkeleton } from '@/components/review-card';
-import { BottomNav } from '@/components/bottom-nav';
-import { ThemeSwitcher } from '@/components/theme-switcher';
 import { getProfile, getRecentReviews, toggleLike } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
 import type { Profile, ReviewWithVenue } from '@/lib/types';
-import Link from 'next/link';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
-
-// Lazy load AddLogModal - only loaded when needed
-const AddLogModal = dynamic(
-  () =>
-    import('@/components/add-log-modal').then((m) => ({
-      default: m.AddLogModal,
-    })),
-  { ssr: false },
-);
+import { AddLogModal } from '@/components/add-log-modal';
+import { PageTitle } from '@/components/layout/page-title';
 
 export default function DashboardPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<ReviewWithVenue[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<ReviewWithVenue | undefined>(
     undefined,
   );
   const [greeting, setGreeting] = useState('Olá');
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -55,7 +37,7 @@ export default function DashboardPage() {
     try {
       const [profileData, reviewsData] = await Promise.all([
         getProfile(user.id),
-        getRecentReviews(20),
+        getRecentReviews(20, user.id),
       ]);
       setProfile(profileData);
       setReviews(reviewsData);
@@ -65,12 +47,6 @@ export default function DashboardPage() {
       setIsLoading(false);
     }
   }, []);
-
-  const handleLogout = useCallback(async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/');
-  }, [router]);
 
   useEffect(() => {
     loadData();
@@ -95,14 +71,11 @@ export default function DashboardPage() {
     return { userReviews: filtered, uniqueVenues: venues, averageRating: avg };
   }, [reviews, profile?.id]);
 
-  const handleOpenModal = useCallback(() => {
-    setEditingLog(undefined);
-    setIsModalOpen(true);
-  }, []);
-
   const handleEditLog = useCallback((log: ReviewWithVenue) => {
     setEditingLog(log);
-    setIsModalOpen(true);
+    // Since the global modal is in the layout, we need a way to open it with editingLog.
+    // For now, I'll keep the local modal for "edit" to avoid complexity,
+    // but refactor it to ONLY be used for editing.
   }, []);
 
   const handleLike = useCallback(
@@ -146,115 +119,10 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Desktop Header - only visible on lg+ */}
-      <header className="hidden lg:flex fixed top-0 left-64 right-0 z-40 h-16 items-center justify-between border-b bg-background/95 backdrop-blur px-8">
-        <div>
-          <h1 className="text-lg font-semibold">Dashboard</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <ThemeSwitcher />
-          <Link href="/settings">
-            <Button variant="ghost" size="icon" className="h-9 w-9">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
-          <DropdownMenu modal={false}>
-            <DropdownMenuTrigger asChild>
-              <Avatar className="h-9 w-9 cursor-pointer">
-                <AvatarImage src={profile?.avatar_url ?? undefined} />
-                <AvatarFallback className="text-sm bg-secondary">
-                  {profile?.username?.charAt(0).toUpperCase() ?? '?'}
-                </AvatarFallback>
-              </Avatar>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/profile" className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  <span>Perfil</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/settings" className="cursor-pointer">
-                  <Settings className="mr-2 h-4 w-4" />
-                  <span>Configurações</span>
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="cursor-pointer"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sair</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </header>
-
-      {/* Mobile Header */}
-      <header className="lg:hidden sticky top-0 z-40 glass border-b border-border/30">
-        <div className="mx-auto flex h-14 max-w-md items-center justify-between px-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <ChefHat className="h-4 w-4" />
-            </div>
-            <span className="font-semibold">Resutorant</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeSwitcher />
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <Avatar className="h-8 w-8 cursor-pointer">
-                  <AvatarImage src={profile?.avatar_url ?? undefined} />
-                  <AvatarFallback className="text-xs bg-secondary">
-                    {profile?.username?.charAt(0).toUpperCase() ?? '?'}
-                  </AvatarFallback>
-                </Avatar>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/profile" className="cursor-pointer">
-                    <User className="mr-2 h-4 w-4" />
-                    <span>Perfil</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/settings" className="cursor-pointer">
-                    <Settings className="mr-2 h-4 w-4" />
-                    <span>Configurações</span>
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="cursor-pointer"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Sair</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </header>
-
+    <div className="bg-background">
+      <PageTitle title="Olá" />
       {/* Main Content */}
-      <main className="lg:ml-64 lg:pt-16 pb-24 lg:pb-8">
+      <main className="pb-24 lg:pb-8">
         <div className="mx-auto max-w-3xl px-4 lg:px-8 py-6 lg:py-8">
           {/* Greeting */}
           <section className="mb-8 animate-enter">
@@ -273,29 +141,45 @@ export default function DashboardPage() {
           {/* Quick stats */}
           <section className="mb-8 grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 animate-enter stagger-1">
             <div className="rounded-2xl bg-primary/10 p-5 lg:p-6 border border-primary/10">
-              <p className="text-3xl lg:text-4xl font-bold text-primary">
-                {userReviews.length}
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-9 w-12 rounded lg:h-10" />
+              ) : (
+                <p className="text-3xl lg:text-4xl font-bold text-primary">
+                  {userReviews.length}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground mt-1">Seus logs</p>
             </div>
             <div className="rounded-2xl bg-secondary p-5 lg:p-6 border border-border/50">
-              <p className="text-3xl lg:text-4xl font-bold text-foreground">
-                {uniqueVenues}
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-9 w-12 rounded lg:h-10" />
+              ) : (
+                <p className="text-3xl lg:text-4xl font-bold text-foreground">
+                  {uniqueVenues}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground mt-1">Lugares</p>
             </div>
             <div className="hidden lg:block rounded-2xl bg-secondary p-6 border border-border/50">
-              <p className="text-4xl font-bold text-foreground">
-                {reviews.length}
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-10 w-12 rounded" />
+              ) : (
+                <p className="text-4xl font-bold text-foreground">
+                  {reviews.length}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground mt-1">
                 Total no feed
               </p>
             </div>
             <div className="hidden lg:block rounded-2xl bg-secondary p-6 border border-border/50">
-              <p className="text-4xl font-bold text-foreground">
-                {averageRating}
-              </p>
+              {isLoading ? (
+                <Skeleton className="h-10 w-12 rounded" />
+              ) : (
+                <p className="text-4xl font-bold text-foreground">
+                  {averageRating}
+                </p>
+              )}
               <p className="text-sm text-muted-foreground mt-1">Nota média</p>
             </div>
           </section>
@@ -335,8 +219,8 @@ export default function DashboardPage() {
                   <p className="text-muted-foreground text-sm mb-6 max-w-sm mx-auto">
                     Registre seu primeiro log e construa seu diário gastronômico
                   </p>
-                  <Button onClick={handleOpenModal} size="lg">
-                    Criar primeiro log
+                  <Button size="lg" asChild>
+                    <Link href="#add">Criar primeiro log</Link>
                   </Button>
                 </div>
               )}
@@ -345,17 +229,16 @@ export default function DashboardPage() {
         </div>
       </main>
 
-      <BottomNav onAddClick={handleOpenModal} />
-
-      <AddLogModal
-        open={isModalOpen}
-        onOpenChange={(val) => {
-          setIsModalOpen(val);
-          if (!val) setEditingLog(undefined);
-        }}
-        onSuccess={loadData}
-        logToEdit={editingLog}
-      />
+      {editingLog && (
+        <AddLogModal
+          open={!!editingLog}
+          onOpenChange={(val: boolean) => {
+            if (!val) setEditingLog(undefined);
+          }}
+          onSuccess={loadData}
+          logToEdit={editingLog}
+        />
+      )}
     </div>
   );
 }

@@ -1,8 +1,16 @@
-
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Search, MapPin, ChefHat, X, Users, List, Store, Star } from 'lucide-react';
+import {
+  Search,
+  MapPin,
+  ChefHat,
+  X,
+  Users,
+  List,
+  Store,
+  Star,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,12 +18,23 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ReviewCard, ReviewCardSkeleton } from '@/components/review-card';
-import { BottomNav } from '@/components/bottom-nav';
 import { AddLogModal } from '@/components/add-log-modal';
-import { ThemeSwitcher } from '@/components/theme-switcher';
-import { searchVenues, searchReviews, getProfile, searchProfiles, searchLists, toggleLike } from '@/lib/queries';
+import { PageTitle } from '@/components/layout/page-title';
+import {
+  searchVenues,
+  searchReviews,
+  getProfile,
+  searchProfiles,
+  searchLists,
+  toggleLike,
+} from '@/lib/queries';
 import { createClient } from '@/lib/supabase/client';
-import type { Venue, ReviewWithVenue, Profile, List as ListType } from '@/lib/types';
+import type {
+  Venue,
+  ReviewWithVenue,
+  Profile,
+  List as ListType,
+} from '@/lib/types';
 
 import { VenueCard, VenueCardSkeleton } from '@/components/venue-card';
 import { UserCard, UserCardSkeleton } from '@/components/user-card';
@@ -32,12 +51,14 @@ export default function SearchPage() {
   const [reviews, setReviews] = useState<ReviewWithVenue[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [lists, setLists] = useState<ListWithMeta[]>([]);
-  
+
   const [isLoading, setIsLoading] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [editingLog, setEditingLog] = useState<ReviewWithVenue | undefined>(undefined);
+  const [editingLog, setEditingLog] = useState<ReviewWithVenue | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     async function loadProfile() {
@@ -63,12 +84,20 @@ export default function SearchPage() {
 
     setIsLoading(true);
     try {
-      const [venuesData, reviewsData, usersData, listsData] = await Promise.all([
-        searchVenues(searchQuery),
-        searchReviews(searchQuery),
-        searchProfiles(searchQuery),
-        searchLists(searchQuery),
-      ]);
+      // Get current user ID for privacy filtering
+      const {
+        data: { user },
+      } = await createClient().auth.getUser();
+      const viewerId = user?.id;
+
+      const [venuesData, reviewsData, usersData, listsData] = await Promise.all(
+        [
+          searchVenues(searchQuery),
+          searchReviews(searchQuery, 1, 20, viewerId),
+          searchProfiles(searchQuery),
+          searchLists(searchQuery),
+        ],
+      );
       setVenues(venuesData);
       setReviews(reviewsData);
       setUsers(usersData);
@@ -97,7 +126,11 @@ export default function SearchPage() {
     setLists([]);
   };
 
-  const hasResults = venues.length > 0 || reviews.length > 0 || users.length > 0 || lists.length > 0;
+  const hasResults =
+    venues.length > 0 ||
+    reviews.length > 0 ||
+    users.length > 0 ||
+    lists.length > 0;
   const hasQuery = query.trim().length > 0;
 
   const handleLike = useCallback(
@@ -139,39 +172,17 @@ export default function SearchPage() {
     },
     [profile],
   );
-  
+
   const handleEditLog = useCallback((review: ReviewWithVenue) => {
     setEditingLog(review);
     setIsModalOpen(true);
   }, []);
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Desktop Header */}
-      <header className="hidden lg:flex fixed top-0 left-64 right-0 z-40 h-16 items-center justify-between border-b bg-background/95 backdrop-blur px-8">
-        <div>
-          <h1 className="text-lg font-semibold">Buscar</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <ThemeSwitcher />
-        </div>
-      </header>
-
-      {/* Mobile Header */}
-      <header className="lg:hidden sticky top-0 z-40 glass border-b border-border/30">
-        <div className="mx-auto flex h-14 max-w-md items-center justify-between px-4">
-          <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <ChefHat className="h-4 w-4" />
-            </div>
-            <span className="font-semibold">Resutorant</span>
-          </div>
-          <ThemeSwitcher />
-        </div>
-      </header>
-
+    <div className="bg-background">
+      <PageTitle title="Buscar" />
       {/* Main Content */}
-      <main className="lg:ml-64 lg:pt-16 pb-24 lg:pb-8">
+      <main className="pb-24 lg:pb-8">
         <div className="mx-auto max-w-3xl px-4 lg:px-8 py-6 lg:py-8">
           {/* Search Input */}
           <section className="mb-6 animate-in">
@@ -210,19 +221,31 @@ export default function SearchPage() {
                   <TabsTrigger value="all" className="flex-1 min-w-[80px]">
                     Tudo
                   </TabsTrigger>
-                  <TabsTrigger value="venues" className="flex-1 min-w-[80px] gap-2">
+                  <TabsTrigger
+                    value="venues"
+                    className="flex-1 min-w-[80px] gap-2"
+                  >
                     <Store className="h-4 w-4 hidden sm:block" />
                     Locais ({venues.length})
                   </TabsTrigger>
-                  <TabsTrigger value="users" className="flex-1 min-w-[80px] gap-2">
+                  <TabsTrigger
+                    value="users"
+                    className="flex-1 min-w-[80px] gap-2"
+                  >
                     <Users className="h-4 w-4 hidden sm:block" />
                     Usuários ({users.length})
                   </TabsTrigger>
-                  <TabsTrigger value="lists" className="flex-1 min-w-[80px] gap-2">
+                  <TabsTrigger
+                    value="lists"
+                    className="flex-1 min-w-[80px] gap-2"
+                  >
                     <List className="h-4 w-4 hidden sm:block" />
                     Listas ({lists.length})
                   </TabsTrigger>
-                  <TabsTrigger value="reviews" className="flex-1 min-w-[80px] gap-2">
+                  <TabsTrigger
+                    value="reviews"
+                    className="flex-1 min-w-[80px] gap-2"
+                  >
                     <Star className="h-4 w-4 hidden sm:block" />
                     Reviews ({reviews.length})
                   </TabsTrigger>
@@ -250,9 +273,9 @@ export default function SearchPage() {
                         </h2>
                         <div className="grid gap-3 lg:grid-cols-2">
                           {venues.slice(0, 4).map((venue) => (
-                            <VenueCard 
-                              key={venue.id} 
-                              venue={venue} 
+                            <VenueCard
+                              key={venue.id}
+                              venue={venue}
                               currentUserProfile={profile}
                               onRefresh={() => performSearch(query)}
                             />
@@ -274,7 +297,7 @@ export default function SearchPage() {
                         </div>
                       </div>
                     )}
-                    
+
                     {/* Lists */}
                     {lists.length > 0 && (
                       <div className="space-y-3">
@@ -283,11 +306,11 @@ export default function SearchPage() {
                         </h2>
                         <div className="grid gap-3 lg:grid-cols-2">
                           {lists.slice(0, 4).map((list) => (
-                            <ListCard 
-                              key={list.id} 
-                              list={list} 
+                            <ListCard
+                              key={list.id}
+                              list={list}
                               venueCount={list.venue_count}
-                              author={list.author ?? undefined} 
+                              author={list.author ?? undefined}
                               currentUserProfile={profile}
                               onRefresh={() => performSearch(query)}
                             />
@@ -333,9 +356,9 @@ export default function SearchPage() {
                 ) : venues.length > 0 ? (
                   <div className="grid gap-3 lg:grid-cols-2">
                     {venues.map((venue) => (
-                      <VenueCard 
-                        key={venue.id} 
-                        venue={venue} 
+                      <VenueCard
+                        key={venue.id}
+                        venue={venue}
                         currentUserProfile={profile}
                         onRefresh={() => performSearch(query)}
                       />
@@ -347,7 +370,7 @@ export default function SearchPage() {
               </TabsContent>
 
               <TabsContent value="users" className="space-y-3">
-                 {isLoading ? (
+                {isLoading ? (
                   <div className="space-y-3">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <UserCardSkeleton key={i} />
@@ -363,9 +386,9 @@ export default function SearchPage() {
                   <EmptySearchState query={query} type="users" />
                 )}
               </TabsContent>
-              
+
               <TabsContent value="lists" className="space-y-3">
-                 {isLoading ? (
+                {isLoading ? (
                   <div className="space-y-3">
                     {Array.from({ length: 3 }).map((_, i) => (
                       <ListCardSkeleton key={i} />
@@ -374,11 +397,11 @@ export default function SearchPage() {
                 ) : lists.length > 0 ? (
                   <div className="grid gap-3 lg:grid-cols-2">
                     {lists.map((list) => (
-                      <ListCard 
-                        key={list.id} 
+                      <ListCard
+                        key={list.id}
                         list={list}
                         venueCount={list.venue_count}
-                        author={list.author ?? undefined} 
+                        author={list.author ?? undefined}
                         currentUserProfile={profile}
                         onRefresh={() => performSearch(query)}
                       />
@@ -421,14 +444,12 @@ export default function SearchPage() {
         </div>
       </main>
 
-      <BottomNav onAddClick={() => setIsModalOpen(true)} />
-
-      <AddLogModal 
-        open={isModalOpen} 
-        onOpenChange={(open) => {
+      <AddLogModal
+        open={isModalOpen}
+        onOpenChange={(open: boolean) => {
           setIsModalOpen(open);
           if (!open) setEditingLog(undefined);
-        }} 
+        }}
         logToEdit={editingLog}
         onSuccess={() => performSearch(query)}
       />

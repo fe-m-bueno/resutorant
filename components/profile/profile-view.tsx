@@ -2,7 +2,14 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Settings, Edit2, Globe, Lock, List as ListIcon, Bookmark } from 'lucide-react';
+import {
+  Settings,
+  Edit2,
+  Globe,
+  Lock,
+  List as ListIcon,
+  Bookmark,
+} from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,15 +26,27 @@ import {
   RatingHistogram,
   RatingHistogramSkeleton,
 } from '@/components/rating-histogram';
-import { FilterBar, FilterBarSkeleton, type FilterState } from '@/components/profile/filter-bar';
-import type { ReviewWithVenue, Profile, List, VenueWithCuisines } from '@/lib/types';
+import {
+  FilterBar,
+  FilterBarSkeleton,
+  type FilterState,
+} from '@/components/profile/filter-bar';
+import type {
+  ReviewWithVenue,
+  Profile,
+  List,
+  VenueWithCuisines,
+} from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
 import { ListCard, ListCardSkeleton } from '@/components/list-card';
 import { VenueCard, VenueCardSkeleton } from '@/components/venue-card';
 
 // Custom type for lists with count
-type ListWithCount = List & { venue_count: number; author?: { username: string | null } };
+type ListWithCount = List & {
+  venue_count: number;
+  author?: { username: string | null };
+};
 
 interface ProfileViewProps {
   profile: Profile | null | undefined;
@@ -69,10 +88,7 @@ export function ProfileView({
   const [sortOption, setSortOption] = useState('date-desc');
 
   // Derive available options from all reviews and planned venues (unfiltered)
-  const allVenues = [
-    ...reviews.map((r) => r.venue),
-    ...plannedVenues,
-  ];
+  const allVenues = [...reviews.map((r) => r.venue), ...plannedVenues];
 
   const availableCuisines = Array.from(
     new Map(
@@ -201,10 +217,7 @@ export function ProfileView({
       return false;
     }
 
-    if (
-      filters.types.length > 0 &&
-      !filters.types.includes(venue.type)
-    ) {
+    if (filters.types.length > 0 && !filters.types.includes(venue.type)) {
       return false;
     }
 
@@ -238,25 +251,25 @@ export function ProfileView({
         return b.rating - a.rating;
       case 'rating-asc':
         return a.rating - b.rating;
-  default:
+      default:
         return 0;
     }
   });
 
   const sortedPlannedVenues = [...filteredPlannedVenues].sort((a, b) => {
     switch (sortOption) {
-      case "date-desc":
+      case 'date-desc':
         // For planned venues, we might don't have a visited_at, so use created_at if available
         // But user_venue_plans has created_at, however Venue type might not have it directly if it's the venue object
         // Actually Venue has created_at
         return (
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         );
-      case "date-asc":
+      case 'date-asc':
         return (
           new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
-      case "alpha-asc":
+      case 'alpha-asc':
         return a.name.localeCompare(b.name);
       // Rating doesn't apply to planned venues yet
       default:
@@ -280,10 +293,10 @@ export function ProfileView({
   // If `reviews` already only contains public reviews (handled by fetcher), 'all' is fine.
 
   return (
-    <div className="min-h-screen bg-background pb-10 sm:pb-20 lg:ml-64">
+    <div className="pb-10 sm:pb-20">
       {header && header}
 
-      <main className="mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-6">
+      <main className="mx-auto max-w-6xl px-4 sm:px-8 py-4 sm:py-6">
         {/* Profile Info */}
         <section className="flex items-start gap-3 sm:gap-5">
           <Avatar className="h-24 w-24 sm:h-[120px] sm:w-[120px] ring-2 ring-primary/20 shrink-0">
@@ -329,41 +342,59 @@ export function ProfileView({
                     {profile.bio}
                   </p>
                 )}
-                
+
                 {profile?.website && (
                   <a
-                    href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
+                    href={
+                      profile.website.startsWith('http')
+                        ? profile.website
+                        : `https://${profile.website}`
+                    }
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1.5 text-xs text-primary hover:underline"
                   >
                     <Globe className="h-3 w-3" />
                     <span className="truncate max-w-[200px]">
-                      {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                      {profile.website
+                        .replace(/^https?:\/\//, '')
+                        .replace(/\/$/, '')}
                     </span>
                   </a>
                 )}
 
-                  <div className="flex items-center gap-4 text-sm mt-1">
-                    <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-4 text-sm mt-1">
+                  <div className="flex items-center gap-1.5">
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-8 rounded" />
+                    ) : (
                       <span className="font-bold text-foreground">
                         {reviews.length}
                       </span>
-                      <span className="text-muted-foreground">logs</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
+                    )}
+                    <span className="text-muted-foreground">logs</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-8 rounded" />
+                    ) : (
                       <span className="font-bold text-foreground">
                         {new Set(reviews.map((r) => r.venue_id)).size}
                       </span>
-                      <span className="text-muted-foreground">lugares</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
+                    )}
+                    <span className="text-muted-foreground">lugares</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {isLoading ? (
+                      <Skeleton className="h-5 w-8 rounded" />
+                    ) : (
                       <span className="font-bold text-foreground">
                         {plannedVenues.length}
                       </span>
-                      <span className="text-muted-foreground">para ir</span>
-                    </div>
+                    )}
+                    <span className="text-muted-foreground">para ir</span>
                   </div>
+                </div>
               </div>
             )}
           </div>
