@@ -638,7 +638,11 @@ export function AddLogModal({
                     <FormControl>
                       <div className="relative">
                         <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input type="date" className="pl-9" {...field} />
+                        <Input
+                          type="date"
+                          className="pl-9 text-left [&::-webkit-date-and-time-value]:text-left block w-full"
+                          {...field}
+                        />
                       </div>
                     </FormControl>
                     <FormMessage />
