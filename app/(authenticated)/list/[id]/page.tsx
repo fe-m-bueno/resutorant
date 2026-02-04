@@ -258,7 +258,7 @@ export default function ListDetailsPage() {
         </div>
 
         {/* Controls */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center max-lg:justify-center gap-2">
           {isOwner && (
             <>
               {isReordering ? (
@@ -292,9 +292,10 @@ export default function ListDetailsPage() {
                   <Button
                     variant="outline"
                     onClick={() => setIsSettingsOpen(true)}
-                    className="gap-2"
+                    className="gap-2 lg:w-auto w-24"
                   >
-                    <Settings className="h-4 w-4" /> Configurações
+                    <Settings className="h-4 w-4" />
+                    <span className="lg:block hidden">Configurações</span>
                   </Button>
                 </>
               )}

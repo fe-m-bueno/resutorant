@@ -265,18 +265,13 @@ export default function ListsPage() {
               ))
             ) : lists.length > 0 ? (
               lists.map((list) => (
-                <a
-                  href={`/list/${list.id}`}
+                <ListCard
                   key={list.id}
-                  className="block group transition-transform active:scale-[0.98]"
-                >
-                  <ListCard
-                    list={list}
-                    venueCount={venueCounts[list.id] ?? 0}
-                    currentUserProfile={currentUserProfile}
-                    onRefresh={loadData}
-                  />
-                </a>
+                  list={list}
+                  venueCount={venueCounts[list.id] ?? 0}
+                  currentUserProfile={currentUserProfile}
+                  onRefresh={loadData}
+                />
               ))
             ) : (
               <div className="text-center py-16 px-4">

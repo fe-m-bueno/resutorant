@@ -628,7 +628,7 @@ export function AddLogModal({
             </div>
 
             {/* Date and Privacy */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex flex-row gap-4">
               <FormField
                 control={form.control}
                 name="visited_at"
@@ -640,7 +640,7 @@ export function AddLogModal({
                         <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           type="date"
-                          className="pl-9 text-left [&::-webkit-date-and-time-value]:text-left block w-full"
+                          className="pl-9 text-left [&::-webkit-date-and-time-value]:text-left block w-fit"
                           {...field}
                         />
                       </div>

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   List as ListIcon,
   Globe,
@@ -34,6 +35,7 @@ export function ListCard({
   author?: { username: string | null };
 }) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const isOwner = currentUserProfile?.id === list.user_id;
   const isAdmin = currentUserProfile?.is_admin;
@@ -57,8 +59,11 @@ export function ListCard({
   };
 
   return (
-    <Link href={`/list/${list.id}`} className="block group">
-      <div className="relative rounded-2xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20 cursor-pointer">
+    <div
+      onClick={() => router.push(`/list/${list.id}`)}
+      className="block group cursor-pointer"
+    >
+      <div className="relative rounded-2xl border bg-card p-4 transition-all hover:shadow-md hover:border-primary/20">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
@@ -80,7 +85,9 @@ export function ListCard({
                     <Link
                       href={`/@${author.username}`}
                       className="hover:underline hover:text-foreground z-10 relative"
-                      onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                      onClick={(e: React.MouseEvent) => {
+                        e.stopPropagation();
+                      }}
                     >
                       @{author.username}
                     </Link>
@@ -103,7 +110,7 @@ export function ListCard({
           </div>
 
           {canDelete && (
-            <div className="z-10 relative" onClick={(e) => e.preventDefault()}>
+            <div className="z-10 relative" onClick={(e) => e.stopPropagation()}>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -144,7 +151,7 @@ export function ListCard({
           </span>
         )}
       </div>
-    </Link>
+    </div>
   );
 }
 
