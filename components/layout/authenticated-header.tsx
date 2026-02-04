@@ -20,6 +20,7 @@ import { useCallback } from 'react';
 import { useLayout } from './layout-context';
 import { cn } from '@/lib/utils';
 import type { Profile } from '@/lib/types';
+import { LoadingBar } from './loading-bar';
 
 interface AuthenticatedHeaderProps {
   title?: string;
@@ -95,6 +96,7 @@ export function AuthenticatedHeader({
             </DropdownMenu>
           </div>
         </div>
+        <LoadingBar />
       </header>
     </>
   );

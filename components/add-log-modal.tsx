@@ -55,7 +55,13 @@ import {
   deleteLog,
 } from '@/lib/queries';
 import { createClient } from '@/lib/supabase/client';
-import type { Tag, CuisineType, Venue, ReviewWithVenue, VenueWithCuisines } from '@/lib/types';
+import type {
+  Tag,
+  CuisineType,
+  Venue,
+  ReviewWithVenue,
+  VenueWithCuisines,
+} from '@/lib/types';
 
 interface AddLogModalProps {
   open: boolean;
@@ -154,7 +160,10 @@ export function AddLogModal({
       form.setValue('is_private', logToEdit.is_private);
       form.setValue('price_level', logToEdit.price_level ?? 3);
       form.setValue('tag_ids', logToEdit.tags?.map((t) => t.id) || []);
-      form.setValue('cuisine_ids', logToEdit.venue.cuisines?.map((c) => c.id) || []);
+      form.setValue(
+        'cuisine_ids',
+        logToEdit.venue.cuisines?.map((c) => c.id) || [],
+      );
     } else if (open && !logToEdit) {
       // Reset defaults for creation if not editing
       // We only do this if we are opening fresh (handled by reset on open/close usually, but let's be safe)
@@ -163,15 +172,18 @@ export function AddLogModal({
       }
 
       if (initialVenue) {
-         setSelectedVenue(initialVenue);
-         form.setValue('venue_id', initialVenue.id);
-         setVenueSearch(initialVenue.name);
-         
-         // Pre-fill cuisines if already present in the initialVenue object
-         const venueWithCuisines = initialVenue as VenueWithCuisines;
-         if (venueWithCuisines.cuisines) {
-            form.setValue('cuisine_ids', venueWithCuisines.cuisines.map((c: CuisineType) => c.id));
-         }
+        setSelectedVenue(initialVenue);
+        form.setValue('venue_id', initialVenue.id);
+        setVenueSearch(initialVenue.name);
+
+        // Pre-fill cuisines if already present in the initialVenue object
+        const venueWithCuisines = initialVenue as VenueWithCuisines;
+        if (venueWithCuisines.cuisines) {
+          form.setValue(
+            'cuisine_ids',
+            venueWithCuisines.cuisines.map((c: CuisineType) => c.id),
+          );
+        }
       }
     }
   }, [open, logToEdit, form, initialVenue]);
@@ -201,17 +213,20 @@ export function AddLogModal({
     form.setValue('venue_name', undefined);
     setVenueSearch(venue.name);
     setVenueResults([]);
-    
+
     // Fetch and pre-fill cuisines
     try {
-        const fullVenue = await getVenueWithCuisines(venue.id);
-        if (fullVenue && fullVenue.cuisines) {
-            form.setValue('cuisine_ids', fullVenue.cuisines.map((c: CuisineType) => c.id));
-        } else {
-            form.setValue('cuisine_ids', []);
-        }
+      const fullVenue = await getVenueWithCuisines(venue.id);
+      if (fullVenue && fullVenue.cuisines) {
+        form.setValue(
+          'cuisine_ids',
+          fullVenue.cuisines.map((c: CuisineType) => c.id),
+        );
+      } else {
+        form.setValue('cuisine_ids', []);
+      }
     } catch (e) {
-        console.error("Error fetching venue cuisines", e);
+      console.error('Error fetching venue cuisines', e);
     }
   };
 
@@ -494,22 +509,22 @@ export function AddLogModal({
 
               {/* Cuisines for existing venue (Add more) */}
               {!isNewVenue && selectedVenue && (
-                 <div className="space-y-2">
-                    <Label className="block">Culinária do Local</Label>
-                    <TagSelector
-                      tags={cuisines.map((c) => ({
-                        id: c.id,
-                        name: `${c.icon ?? ''} ${c.name}`.trim(),
-                        color: '#f59e0b',
-                        created_at: c.created_at,
-                        created_by: c.created_by,
-                      }))}
-                      selectedIds={form.watch('cuisine_ids') ?? []}
-                      onChange={(ids) => form.setValue('cuisine_ids', ids)}
-                      onCreateTag={handleCreateCuisine}
-                      placeholder="Adicionar culinária..."
-                    />
-                 </div>
+                <div className="space-y-2">
+                  <Label className="block">Culinária do Local</Label>
+                  <TagSelector
+                    tags={cuisines.map((c) => ({
+                      id: c.id,
+                      name: `${c.icon ?? ''} ${c.name}`.trim(),
+                      color: '#f59e0b',
+                      created_at: c.created_at,
+                      created_by: c.created_by,
+                    }))}
+                    selectedIds={form.watch('cuisine_ids') ?? []}
+                    onChange={(ids) => form.setValue('cuisine_ids', ids)}
+                    onCreateTag={handleCreateCuisine}
+                    placeholder="Adicionar culinária..."
+                  />
+                </div>
               )}
             </div>
 
@@ -613,7 +628,7 @@ export function AddLogModal({
             </div>
 
             {/* Date and Privacy */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="visited_at"
