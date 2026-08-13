@@ -1,142 +1,142 @@
-# Políticas de Segurança e Privacidade
+# Security and Privacy Policies
 
-Este documento descreve as políticas de segurança e privacidade implementadas no Resutorant, incluindo as regras de Row Level Security (RLS) e as checagens explícitas na camada de aplicação.
+This document describes the security and privacy policies implemented in Resutorant, including the Row Level Security (RLS) rules and the explicit checks in the application layer.
 
-## Visão Geral
+## Overview
 
-O Resutorant implementa uma abordagem de **defense-in-depth** para proteger dados privados:
+Resutorant takes a **defense-in-depth** approach to protecting private data:
 
-1. **RLS (Row Level Security)** no banco de dados Supabase como primeira linha de defesa
-2. **Filtros explícitos na camada de aplicação** como camada adicional de proteção
-3. **Validação de propriedade** em operações de escrita (update/delete)
+1. **RLS (Row Level Security)** in the Supabase database as the first line of defense
+2. **Explicit filters in the application layer** as an additional layer of protection
+3. **Ownership validation** on write operations (update/delete)
 
-## Tabelas Sensíveis
+## Sensitive Tables
 
 ### Reviews (`reviews`)
 
-**Campos de privacidade:**
-- `is_private` (boolean): Indica se o review é privado ou público
+**Privacy fields:**
+- `is_private` (boolean): Indicates whether the review is private or public
 
-**Políticas de acesso:**
-- **Reviews públicos** (`is_private = false`): Visíveis para todos os usuários autenticados
-- **Reviews privados** (`is_private = true`): Visíveis apenas para:
-  - O próprio autor (`user_id = viewer_id`)
-  - Administradores (quando aplicável)
+**Access policies:**
+- **Public reviews** (`is_private = false`): Visible to all authenticated users
+- **Private reviews** (`is_private = true`): Visible only to:
+  - The author themselves (`user_id = viewer_id`)
+  - Administrators (where applicable)
 
-**Queries afetadas:**
-- `getRecentReviews()` - Filtra reviews privados, exceto do viewer
-- `getReviewsByUser()` - Mostra apenas públicos quando viewer ≠ owner
-- `searchReviews()` - Filtra reviews privados, exceto do viewer
-- `getVenueReviews()` - Filtra reviews privados, exceto do viewer
-- `getComments()` - Verifica se o review é público antes de mostrar comentários
+**Affected queries:**
+- `getRecentReviews()` — Filters out private reviews, except the viewer's own
+- `getReviewsByUser()` — Shows only public reviews when viewer ≠ owner
+- `searchReviews()` — Filters out private reviews, except the viewer's own
+- `getVenueReviews()` — Filters out private reviews, except the viewer's own
+- `getComments()` — Checks whether the review is public before showing comments
 
-### Listas (`lists`)
+### Lists (`lists`)
 
-**Campos de privacidade:**
-- `is_public` (boolean): Indica se a lista é pública ou privada
+**Privacy fields:**
+- `is_public` (boolean): Indicates whether the list is public or private
 
-**Políticas de acesso:**
-- **Listas públicas** (`is_public = true`): Visíveis para todos os usuários autenticados
-- **Listas privadas** (`is_public = false`): Visíveis apenas para:
-  - O próprio dono (`user_id = viewer_id`)
+**Access policies:**
+- **Public lists** (`is_public = true`): Visible to all authenticated users
+- **Private lists** (`is_public = false`): Visible only to:
+  - The owner themselves (`user_id = viewer_id`)
 
-**Queries afetadas:**
-- `getListDetails()` - Filtra listas privadas, exceto do viewer
-- `searchLists()` - Já filtra apenas listas públicas
-- `getUserListsWithCounts()` - Respeita `includePrivate` quando viewer = owner
+**Affected queries:**
+- `getListDetails()` — Filters out private lists, except the viewer's own
+- `searchLists()` — Already filters to public lists only
+- `getUserListsWithCounts()` — Honors `includePrivate` when viewer = owner
 
-**Nota especial:** Quando uma lista pública contém items com reviews privados, esses reviews são filtrados na resposta de `getListDetails()` se o viewer não for o dono do review.
+**Special note:** When a public list contains items with private reviews, those reviews are filtered out of the `getListDetails()` response if the viewer is not the review's owner.
 
-### Comentários (`comments`)
+### Comments (`comments`)
 
-**Políticas de acesso:**
-- Comentários só são visíveis se o review associado (`log_id`) for:
-  - Público (`is_private = false`), OU
-  - Privado mas pertencente ao viewer (`user_id = viewer_id`)
+**Access policies:**
+- Comments are visible only if the associated review (`log_id`) is:
+  - Public (`is_private = false`), OR
+  - Private but owned by the viewer (`user_id = viewer_id`)
 
-**Queries afetadas:**
-- `getComments()` - Verifica privacidade do review antes de retornar comentários
+**Affected queries:**
+- `getComments()` — Checks the review's privacy before returning comments
 
-### Perfis (`profiles`)
+### Profiles (`profiles`)
 
-**Políticas de acesso:**
-- Perfis são públicos por padrão (apenas `username` é obrigatório)
-- Informações sensíveis (email, etc.) são gerenciadas pelo Supabase Auth
+**Access policies:**
+- Profiles are public by default (only `username` is required)
+- Sensitive information (email, and so on) is managed by Supabase Auth
 
-**Queries afetadas:**
-- `getProfile()` - Sempre retorna o perfil completo (dados públicos)
-- `getProfileByUsername()` - Retorna perfil público por username
-- `searchProfiles()` - Busca perfis públicos
+**Affected queries:**
+- `getProfile()` — Always returns the full profile (public data)
+- `getProfileByUsername()` — Returns a public profile by username
+- `searchProfiles()` — Searches public profiles
 
-## Implementação Técnica
+## Technical Implementation
 
-### Padrão de Filtros Explícitos
+### Explicit Filter Pattern
 
-Todas as queries públicas seguem este padrão:
+Every public query follows this pattern:
 
 ```typescript
-// Exemplo: getRecentReviews
+// Example: getRecentReviews
 export async function getRecentReviews(
   limit: number,
-  viewerId?: string, // ID do usuário visualizando (opcional)
+  viewerId?: string, // ID of the viewing user (optional)
 ): Promise<ReviewWithVenue[]> {
   let query = supabase.from('reviews').select('*');
-  
-  // Filtro explícito de privacidade
+
+  // Explicit privacy filter
   if (viewerId) {
-    // Mostra públicos OU do próprio viewer
+    // Show public reviews OR the viewer's own
     query = query.or(`is_private.eq.false,user_id.eq.${viewerId}`);
   } else {
-    // Sem viewerId, apenas públicos
+    // Without a viewerId, public reviews only
     query = query.eq('is_private', false);
   }
-  
-  // ... resto da query
+
+  // ... rest of the query
 }
 ```
 
-### Passando viewerId
+### Passing viewerId
 
-O `viewerId` deve ser passado em todas as chamadas de queries públicas:
+`viewerId` must be passed on every public query call:
 
 ```typescript
-// Em componentes client-side
+// In client-side components
 const { data: { user } } = await supabase.auth.getUser();
 const reviews = await getRecentReviews(20, user?.id);
 
-// Em server components
+// In server components
 const supabase = await createClient();
 const { data: { user } } = await supabase.auth.getUser();
 const reviews = await getVenueReviews(venueId, user?.id);
 ```
 
-## RLS Policies Esperadas
+## Expected RLS Policies
 
-Embora o código implemente filtros explícitos, as seguintes políticas RLS devem existir no banco:
+Although the code implements explicit filters, the following RLS policies must exist in the database:
 
 ### Reviews
-- **SELECT**: Usuários podem ver reviews públicos OU seus próprios reviews privados
-- **INSERT**: Usuários podem criar reviews (com `user_id = auth.uid()`)
-- **UPDATE**: Usuários podem atualizar apenas seus próprios reviews
-- **DELETE**: Usuários podem deletar apenas seus próprios reviews (ou admins podem deletar públicos)
+- **SELECT**: Users can see public reviews OR their own private reviews
+- **INSERT**: Users can create reviews (with `user_id = auth.uid()`)
+- **UPDATE**: Users can update only their own reviews
+- **DELETE**: Users can delete only their own reviews (or admins can delete public ones)
 
-### Listas
-- **SELECT**: Usuários podem ver listas públicas OU suas próprias listas privadas
-- **INSERT**: Usuários podem criar listas (com `user_id = auth.uid()`)
-- **UPDATE**: Usuários podem atualizar apenas suas próprias listas
-- **DELETE**: Usuários podem deletar apenas suas próprias listas (ou admins podem deletar públicas)
+### Lists
+- **SELECT**: Users can see public lists OR their own private lists
+- **INSERT**: Users can create lists (with `user_id = auth.uid()`)
+- **UPDATE**: Users can update only their own lists
+- **DELETE**: Users can delete only their own lists (or admins can delete public ones)
 
-### Comentários
-- **SELECT**: Usuários podem ver comentários de reviews públicos OU reviews privados próprios
-- **INSERT**: Usuários podem comentar em reviews públicos OU seus próprios reviews privados
-- **UPDATE/DELETE**: Usuários podem modificar apenas seus próprios comentários
+### Comments
+- **SELECT**: Users can see comments on public reviews OR on their own private reviews
+- **INSERT**: Users can comment on public reviews OR on their own private reviews
+- **UPDATE/DELETE**: Users can modify only their own comments
 
-## Validação de Propriedade
+## Ownership Validation
 
-Operações de escrita sempre validam propriedade explicitamente:
+Write operations always validate ownership explicitly:
 
 ```typescript
-// Exemplo: updateLog
+// Example: updateLog
 const { data: existingReview } = await supabase
   .from('reviews')
   .select('user_id')
@@ -150,31 +150,31 @@ if (existingReview.user_id !== userId) {
 
 ## Admin Privileges
 
-Administradores (`profiles.is_admin = true`) têm permissões especiais:
+Administrators (`profiles.is_admin = true`) have special permissions:
 
-- Podem deletar reviews públicos de outros usuários
-- Podem deletar listas públicas de outros usuários
-- **NÃO** podem acessar reviews/listas privadas de outros usuários (por design)
+- They can delete other users' public reviews
+- They can delete other users' public lists
+- They **cannot** access other users' private reviews or lists (by design)
 
-## Checklist de Segurança
+## Security Checklist
 
-Ao adicionar novas queries públicas, verifique:
+When adding new public queries, check that:
 
-- [ ] Query filtra dados privados quando `viewerId` não é o owner?
-- [ ] Query aceita `viewerId` opcional como parâmetro?
-- [ ] Todos os call sites passam `viewerId` quando disponível?
-- [ ] Operações de escrita validam propriedade explicitamente?
-- [ ] Documentação foi atualizada com a nova query?
+- [ ] The query filters private data when `viewerId` is not the owner
+- [ ] The query accepts an optional `viewerId` parameter
+- [ ] All call sites pass `viewerId` when it is available
+- [ ] Write operations validate ownership explicitly
+- [ ] The documentation has been updated with the new query
 
-## Auditoria e Monitoramento
+## Auditing and Monitoring
 
-Recomendações para monitoramento:
+Monitoring recommendations:
 
-1. **Logs de acesso**: Monitorar tentativas de acesso a dados privados
-2. **RLS violations**: Verificar logs do Supabase para políticas que falharam
-3. **Query performance**: Filtros explícitos podem impactar performance em grandes volumes
+1. **Access logs**: Monitor attempts to access private data
+2. **RLS violations**: Check the Supabase logs for policies that failed
+3. **Query performance**: Explicit filters can affect performance at high volumes
 
-## Referências
+## References
 
 - [Supabase RLS Documentation](https://supabase.com/docs/guides/auth/row-level-security)
 - [Defense in Depth](https://en.wikipedia.org/wiki/Defense_in_depth_(computing))
