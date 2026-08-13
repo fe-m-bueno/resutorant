@@ -1,110 +1,110 @@
 # Resutorant
 
-Plataforma de avaliacao e planejamento gastronomico pessoal.
+A personal restaurant rating and dining planning platform.
 
-Este projeto permite aos usuarios registrar suas experiencias em restaurantes, criar listas de lugares para visitar e visualizar estatisticas detalhadas sobre seus habitos gastronomicos.
+This project lets users log their restaurant experiences, build lists of places to visit, and view detailed statistics about their dining habits.
 
-## Visao Geral
+## Overview
 
-O Resutorant e uma aplicacao web moderna construida com Next.js, desenhada para ser uma ferramenta pessoal robusta para foodies e entusiastas da gastronomia. Oferece uma interface rica e responsiva para gerenciar memorias culinarias.
+Resutorant is a modern web application built with Next.js, designed as a solid personal tool for foodies and dining enthusiasts. It offers a rich, responsive interface for managing culinary memories.
 
-## Funcionalidades Principais
+## Key Features
 
-- **Dashboard:** Visao geral das ultimas atividades e metricas rapidas.
-- **Avaliacoes Detalhadas:** Registre notas, precos, datas e tags personalizadas para cada visita.
-- **Listas e Planejamento:** Organize restaurantes em listas (ex: "Melhores Burger", "Jantar Romantico") e mantenha uma lista de "Planejo Ir".
-- **Busca Avancada:** Encontre rapidamente restaurantes ja visitados ou salvos.
-- **Perfil e Estatisticas:** Analise seus habitos com graficos interativos e historico completo.
-- **Configuracoes Personalizaveis:** Gerencie tags, cozinhas e preferencias da conta.
-- **Autenticacao Segura:** Sistema de login robusto e seguro via Supabase.
+- **Dashboard:** An overview of recent activity and quick metrics.
+- **Detailed Reviews:** Log ratings, prices, dates, and custom tags for every visit.
+- **Lists and Planning:** Organize restaurants into lists (for example, "Best Burgers", "Romantic Dinner") and keep a "Want to Go" list.
+- **Advanced Search:** Quickly find restaurants you have already visited or saved.
+- **Profile and Statistics:** Analyze your habits with interactive charts and a complete history.
+- **Customizable Settings:** Manage tags, cuisines, and account preferences.
+- **Secure Authentication:** A robust, secure login system via Supabase.
 
-## Stack Tecnologico
+## Tech Stack
 
 - **Framework:** Next.js (App Router)
-- **Linguagem:** TypeScript
-- **Estilizacao:** Tailwind CSS
-- **Componentes UI:** Radix UI, Lucide React
-- **Animacoes:** Framer Motion
-- **Gerenciamento de Estado/Dados:** TanStack Query (React Query)
-- **Formularios:** React Hook Form, Zod
-- **Graficos:** Recharts
-- **Backend & Banco de Dados:** Supabase
-- **Utilitarios:** date-fns, clsx, tailwind-merge
+- **Language:** TypeScript
+- **Styling:** Tailwind CSS
+- **UI Components:** Radix UI, Lucide React
+- **Animations:** Framer Motion
+- **State/Data Management:** TanStack Query (React Query)
+- **Forms:** React Hook Form, Zod
+- **Charts:** Recharts
+- **Backend & Database:** Supabase
+- **Utilities:** date-fns, clsx, tailwind-merge
 
-## Capturas de Tela
+## Screenshots
 
 ### Dashboard
 
 ![Dashboard](screenshots/dashboard.png)
 
-### Perfil do Usuario
+### User Profile
 
-![Perfil](screenshots/profile.png)
+![Profile](screenshots/profile.png)
 
-### Listas
+### Lists
 
-![Listas](screenshots/lists.png)
+![Lists](screenshots/lists.png)
 
-### Planejamento
+### Planning
 
-![Planejado](screenshots/planned.png)
+![Planned](screenshots/planned.png)
 
-### Busca
+### Search
 
-![Busca](screenshots/search.png)
+![Search](screenshots/search.png)
 
-### Configuracoes
+### Settings
 
-![Configuracoes](screenshots/settings.png)
+![Settings](screenshots/settings.png)
 
-## Como Iniciar
+## Getting Started
 
-Siga estas instrucoes para configurar o projeto localmente.
+Follow these instructions to set the project up locally.
 
-### Pre-requisitos
+### Prerequisites
 
-- Node.js (versao LTS recomendada)
-- npm ou yarn
+- Node.js (LTS version recommended)
+- npm or yarn
 
-### Instalacao
+### Installation
 
-1.  Clone o repositorio:
+1.  Clone the repository:
 
     ```bash
-    git clone https://github.com/seu-usuario/resutorant.git
+    git clone https://github.com/your-username/resutorant.git
     cd resutorant
     ```
 
-2.  Instale as dependencias:
+2.  Install the dependencies:
 
     ```bash
     npm install
     ```
 
-3.  Configure as variaveis de ambiente:
-    Crie um arquivo `.env.local` na raiz do projeto e adicione as chaves do Supabase:
+3.  Configure the environment variables:
+    Create a `.env.local` file at the project root and add your Supabase keys:
 
     ```env
-    NEXT_PUBLIC_SUPABASE_URL=sua_url_supabase
-    NEXT_PUBLIC_SUPABASE_ANON_KEY=sua_chave_anonima
+    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
     ```
 
-4.  Inicie o servidor de desenvolvimento:
+4.  Start the development server:
 
     ```bash
     npm run dev
     ```
 
-5.  Acesse a aplicacao em `http://localhost:3000`.
+5.  Open the application at `http://localhost:3000`.
 
-## Estrutura do Projeto
+## Project Structure
 
-- `/app`: Rotas e paginas da aplicacao (Next.js App Router).
-- `/components`: Componentes reutilizaveis de UI.
-- `/lib`: Funcoes utilitarias, hooks e configuracoes.
-- `/public`: Arquivos estaticos.
-- `/screenshots`: Imagens utilizadas neste README.
+- `/app`: Application routes and pages (Next.js App Router).
+- `/components`: Reusable UI components.
+- `/lib`: Utility functions, hooks, and configuration.
+- `/public`: Static files.
+- `/screenshots`: Images used in this README.
 
 ---
 
-Desenvolvido por Felipe Bueno.
+Built by Felipe Bueno.
